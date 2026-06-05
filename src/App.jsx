@@ -303,20 +303,47 @@ function MasterFilterBar({ filterView, setFilterView, filterBiz, setFilterBiz })
 // ── Calendar (Google Calendar connected) ──────────────────────────────
 
 function CalSlot({ slot, events }) {
+  const slotStartMins = slot.h * 60 + slot.m
+  const slotEndMins   = slotStartMins + 30
+
   const slotEvents = events.filter(e => {
-    if (!e.start || e.allDay) return false
-    const d = new Date(e.start)
-    return d.getHours() === slot.h &&
-           (slot.m === 0 ? d.getMinutes() < 30 : d.getMinutes() >= 30)
+    if (!e.start) return false
+    if (e.allDay) return false
+    const sMins   = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
+    const endDate = new Date(e.end || e.start)
+    const eMinsRaw = endDate.getHours() * 60 + endDate.getMinutes()
+    // If end==start (missing end time), treat as 30-min event
+    const eMins = eMinsRaw === sMins ? sMins + 30 : eMinsRaw
+    return sMins < slotEndMins && eMins > slotStartMins
   })
+
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:4, borderBottom:'1px solid #f5f5f5', minHeight:22, padding:'1px 0' }}>
-      <span style={{ fontSize:10, color:'#c0c0c0', width:36, flexShrink:0 }}>{slot.label}</span>
-      {slotEvents.map(e => (
-        <span key={e.id} style={{ fontSize:10, fontWeight:500, color:'#fff', background:e.color||'#1a73e8', padding:'1px 7px', borderRadius:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:180 }}>
-          {e.title}
-        </span>
-      ))}
+    <div style={{
+      display:'flex', alignItems:'center', gap:4,
+      borderBottom: slot.isNoon ? '1px solid #d1d5db' : '1px solid #f5f5f5',
+      minHeight: 19, padding:'1px 0', overflow:'hidden',
+    }}>
+      <span style={{
+        fontSize:10, width:36, flexShrink:0,
+        color:      slot.isNoon ? '#374151' : '#c0c0c0',
+        fontWeight: slot.isNoon ? 600 : 400,
+      }}>{slot.label}</span>
+      {slotEvents.map(e => {
+        const sMins   = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
+        const isFirst = sMins >= slotStartMins && sMins < slotEndMins
+        return (
+          <span key={e.id} style={{
+            display:'inline-block', fontSize:10, color:'#fff',
+            background: e.color || '#1a73e8',
+            opacity: isFirst ? 1 : 0.55,
+            padding:'1px 7px', borderRadius:3,
+            maxWidth:185, overflow:'hidden',
+            textOverflow:'ellipsis', whiteSpace:'nowrap', flexShrink:0,
+          }}>
+            {isFirst ? e.title : `↳ ${e.title}`}
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -325,7 +352,10 @@ function Calendar() {
   const [calData, setCalData] = useState({ connected: false, events: [] })
 
   useEffect(() => {
-    fetch('/api/calendar/today')
+    const now   = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(),  0,  0,  0).toISOString()
+    const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString()
+    fetch('/api/calendar/today?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end))
       .then(r => r.json())
       .then(setCalData)
       .catch(() => {})

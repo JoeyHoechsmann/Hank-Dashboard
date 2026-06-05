@@ -140,9 +140,14 @@ app.get('/api/calendar/today', async (req, res) => {
     const calColors  = {}
     calendars.forEach(cal => { calColors[cal.id] = cal.backgroundColor || '#1a73e8' })
 
-    const now = new Date()
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
-    const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+    // Use time window sent from browser (correct local timezone)
+    // Falls back to UTC if no params (local dev)
+    const startOfDay = req.query.start
+      ? decodeURIComponent(req.query.start)
+      : new Date(new Date().setHours(0,0,0,0)).toISOString()
+    const endOfDay = req.query.end
+      ? decodeURIComponent(req.query.end)
+      : new Date(new Date().setHours(23,59,59,999)).toISOString()
 
     const allEvents = []
     for (const cal of calendars) {
