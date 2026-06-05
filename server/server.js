@@ -18,8 +18,12 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 )
 
-// Calendars to hide — set HIDDEN_CALENDARS in Railway env vars
-// Example: HIDDEN_CALENDARS=DC Deliveries,DC Pickups,Holidays in Canada
+// Calendar whitelist — set SHOWN_CALENDARS in Railway env vars (recommended)
+// Example: SHOWN_CALENDARS=Joey Hoechsmann,Family Calendar,Sales Events
+// If SHOWN_CALENDARS is set, only those calendars are shown.
+// Otherwise use HIDDEN_CALENDARS to exclude specific ones.
+const shownCals = (process.env.SHOWN_CALENDARS || '')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
 const hiddenCals = (process.env.HIDDEN_CALENDARS || '')
   .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
 
@@ -87,7 +91,10 @@ app.get('/api/calendar/list', async (req, res) => {
       id:       c.id,
       color:    c.backgroundColor,
       selected: c.selected !== false,
-      hidden:   hiddenCals.some(h => (c.summary || '').toLowerCase().includes(h))
+      shown: shownCals.length === 0 || shownCals.some(h => (c.summary || '').toLowerCase().includes(h)),
+      hidden: shownCals.length > 0
+        ? !shownCals.some(h => (c.summary || '').toLowerCase().includes(h))
+        : hiddenCals.some(h => (c.summary || '').toLowerCase().includes(h))
     }))
     res.json({
       note: 'To hide calendars, set HIDDEN_CALENDARS env var in Railway (comma-separated names)',
@@ -140,9 +147,15 @@ app.get('/api/calendar/today', async (req, res) => {
     const allEvents = []
     for (const cal of calendars) {
       if (cal.selected === false) continue
-      // Skip hidden calendars
+      // Apply calendar filter
       const calName = (cal.summary || '').toLowerCase()
-      if (hiddenCals.some(h => calName.includes(h))) continue
+      if (shownCals.length > 0) {
+        // Whitelist mode: only show calendars in SHOWN_CALENDARS
+        if (!shownCals.some(h => calName.includes(h))) continue
+      } else if (hiddenCals.some(h => calName.includes(h))) {
+        // Blacklist mode: skip hidden calendars
+        continue
+      }
 
       try {
         const evRes = await calendar.events.list({
