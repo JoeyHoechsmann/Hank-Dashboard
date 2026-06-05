@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 
 const GAMES_DATE = '2026-07-20'
 const DAYS_AHEAD = 10
+const SYNC_DELAY = 1500
 
 function getToday() {
   return new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })
@@ -30,92 +31,6 @@ const HORIZON_COLORS = {
   'This Month':   { bg:'#ede9fe', color:'#5b21b6' },
   'This Quarter': { bg:'#dcfce7', color:'#166534' },
   'Someday':      { bg:'#f1f5f9', color:'#64748b' },
-}
-
-const INITIAL_TASKS = [
-  { id:1, status:'todo', name:'Geoff - Follow up Call', biz:'Hush', horizon:'This Week', added:'', due:'Jun 4', delegate:'' },
-  { id:2, status:'doing', name:'Book high point accommodations', biz:'Hush', horizon:'This Week', added:'', due:'May 23', delegate:'' },
-  { id:3, status:'todo', name:'Call Art of skin re: appointments', biz:'Personal', horizon:'This Week', added:'', due:'May 16', delegate:'' },
-  { id:4, status:'todo', name:'Jag - follow up (primo & Fine Home)', biz:'Hush', horizon:'This Week', added:'', due:'May 21', delegate:'' },
-  { id:5, status:'todo', name:'Nathan - June Mondays OFF??', biz:'Hush', horizon:'This Week', added:'', due:'May 23', delegate:'' },
-  { id:6, status:'todo', name:'Call Dr Lubitz reschedule appointment', biz:'Personal', horizon:'This Week', added:'', due:'May 23', delegate:'' },
-  { id:7, status:'todo', name:'Call Tree Trimmer for house', biz:'Personal', horizon:'This Week', added:'', due:'May 23', delegate:'' },
-  { id:8, status:'todo', name:'Quality stock order - new stains?', biz:'Hush', horizon:'This Week', added:'', due:'May 23', delegate:'' },
-  { id:9, status:'todo', name:'HOCH logo redesign', biz:'Hush', horizon:'This Week', added:'', due:'May 23', delegate:'' },
-  { id:10, status:'todo', name:'Set up an appointment with Graham Lehman @ Creekside', biz:'Personal', horizon:'This Week', added:'', due:'May 24', delegate:'' },
-  { id:11, status:'todo', name:'Follow up with Archdesigns on cabinetry.', biz:'Hush', horizon:'This Week', added:'', due:'May 25', delegate:'' },
-  { id:12, status:'todo', name:'Order Restwell Zara RVQ x2, Theadora doubles', biz:'Hush', horizon:'This Week', added:'', due:'May 25', delegate:'' },
-  { id:13, status:'todo', name:'Write Ashley Radio', biz:'Ashley', horizon:'This Week', added:'', due:'May 27', delegate:'' },
-  { id:14, status:'todo', name:'Order Samsung OTRs', biz:'Hush', horizon:'This Month', added:'', due:'May 30', delegate:'Brendon' },
-  { id:15, status:'todo', name:'Create a Rendering of Canvas structure at Ashley', biz:'Ashley', horizon:'This Month', added:'', due:'May 30', delegate:'' },
-  { id:16, status:'todo', name:'Solution for Roof leak at 338', biz:'Comm. RE', horizon:'This Month', added:'', due:'May 30', delegate:'' },
-  { id:17, status:'todo', name:'Ashley 1on1 meetings with sales team', biz:'Ashley', horizon:'This Month', added:'', due:'May 30', delegate:'' },
-  { id:18, status:'todo', name:'Premium Appliance Display - Jenair Wolf Sub Zero GE Cafe Monogram', biz:'Hush', horizon:'This Week', added:'', due:'May 30', delegate:'' },
-  { id:19, status:'todo', name:'Insure MotorBike', biz:'Personal', horizon:'This Month', added:'', due:'May 30', delegate:'' },
-  { id:20, status:'todo', name:'Archsynth AI software', biz:'Hush', horizon:'This Month', added:'', due:'May 30', delegate:'' },
-  { id:21, status:'todo', name:'Website - LZB Chair layout', biz:'Hush', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:22, status:'todo', name:'Blinds - Skyler Dalum 250-919-2288', biz:'Hush', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:23, status:'todo', name:'Update Lease for Kendall', biz:'Comm. RE', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:24, status:'todo', name:'Order a new computer for Brendon', biz:'Hush', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:25, status:'todo', name:'Create new logo for Liquor Store', biz:'Liquor Store', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:26, status:'todo', name:'Canvas structure quote', biz:'Ashley', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:27, status:'todo', name:'Triangular Toblerone Sale mattress talker', biz:'Hush', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:28, status:'todo', name:'Facebook custom & look-alike audience', biz:'Hush', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:29, status:'todo', name:'Stone Ridge Estates logo', biz:'Land Dev', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:30, status:'todo', name:'Compactor Switch', biz:'Liquor Store', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:31, status:'todo', name:'Checkit / Facebook integration issues', biz:'Hush', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:32, status:'todo', name:'iPad 2nd tablet set up', biz:'Personal', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:33, status:'todo', name:'Review land agreement', biz:'Land Dev', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:34, status:'todo', name:'Rusty Bear Wallball Targets', biz:'Rusty Bear', horizon:'This Month', added:'', due:'May 31', delegate:'' },
-  { id:35, status:'todo', name:'Set up Marketing meeting with Christine from dRSG', biz:'Hush', horizon:'This Week', added:'', due:'Jun 1', delegate:'' },
-  { id:36, status:'todo', name:'Book Doctors app - prescriptions Jublia/Diclo Hormones', biz:'Personal', horizon:'This Week', added:'', due:'Jun 6', delegate:'' },
-  { id:37, status:'todo', name:'Call Billy at Quality 604.644.0867', biz:'Hush', horizon:'This Week', added:'', due:'Jun 6', delegate:'' },
-  { id:38, status:'todo', name:'Optimize Website - AI searches', biz:'Hush', horizon:'This Week', added:'', due:'Jun 6', delegate:'' },
-  { id:39, status:'todo', name:'Assess dRSG container product for fall', biz:'Hush', horizon:'This Month', added:'', due:'Jun 6', delegate:'' },
-  { id:40, status:'todo', name:'Create a Marketing Agent', biz:'Hush', horizon:'This Week', added:'', due:'Jun 13', delegate:'' },
-  { id:41, status:'todo', name:'Call Karam from King Eddie', biz:'Liquor Store', horizon:'This Month', added:'', due:'Jun 13', delegate:'' },
-  { id:42, status:'todo', name:'Where to buy Celiant Mattress protectors', biz:'Hush', horizon:'This Month', added:'', due:'Jun 20', delegate:'' },
-  { id:43, status:'todo', name:'Create sales training AI - sales & Mark training docs', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 20', delegate:'' },
-  { id:44, status:'todo', name:'Rotary CrossFit presentation', biz:'Personal', horizon:'This Month', added:'', due:'Jun 25', delegate:'' },
-  { id:45, status:'todo', name:'Order a second open sign for Ashley - right side window', biz:'Ashley', horizon:'This Month', added:'', due:'Jun 27', delegate:'Zack' },
-  { id:46, status:'todo', name:'Order rain bells for tents down in Ashley', biz:'Ashley', horizon:'This Month', added:'', due:'Jun 27', delegate:'' },
-  { id:47, status:'todo', name:'New Claude Project - Hush Sales expert', biz:'Hush', horizon:'This Month', added:'', due:'Jun 27', delegate:'' },
-  { id:48, status:'todo', name:'Set Up Projects in Notion - ie Hush Reno', biz:'Hush', horizon:'This Month', added:'', due:'Jun 27', delegate:'' },
-  { id:49, status:'todo', name:'Summer Staff Party', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 27', delegate:'' },
-  { id:50, status:'todo', name:'Look into side entry containers for DC - Big Al?', biz:'DC', horizon:'This Month', added:'', due:'Jun 27', delegate:'' },
-  { id:51, status:'todo', name:'Add more garbage cans to downtown Cranbrook', biz:'DBA', horizon:'This Quarter', added:'', due:'Jun 27', delegate:'' },
-  { id:52, status:'todo', name:'Order a new tent for Ashley', biz:'Ashley', horizon:'This Month', added:'', due:'Jun 27', delegate:'' },
-  { id:53, status:'todo', name:'Set up Eli with a Dropbox account', biz:'Personal', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:54, status:'todo', name:'Clean out lean-to and remove all garbage', biz:'Personal', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:55, status:'todo', name:'Replace front door handle', biz:'Personal', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:56, status:'todo', name:'Dropbox Photo Cleanse', biz:'Personal', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:57, status:'todo', name:'Sunco - move camera down add one upstairs', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:58, status:'todo', name:'Paint the La-z-Boy wall blue', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:59, status:'todo', name:'Procedure: Staff Performance Review Document', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:60, status:'todo', name:'Fix loading dock - back of store', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:61, status:'todo', name:'Security system for Hush offices', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:62, status:'todo', name:'Policy document: Salesperson leaving', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:63, status:'todo', name:'Extend Price Increase Review', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:64, status:'todo', name:'Review Extend Expenses with Service Team', biz:'DC', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:65, status:'todo', name:'Revise bonus and KPI analysis', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:66, status:'todo', name:'Mike Sommer - fix range in apartment', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:67, status:'todo', name:'George Monthly Booze Analysis', biz:'Liquor Store', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:68, status:'todo', name:'Blue Truck Billboard Artwork', biz:'DC', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:69, status:'todo', name:'338 Poll Sign', biz:'Comm. RE', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:70, status:'todo', name:'Update Peak Security', biz:'Hush', horizon:'This Quarter', added:'', due:'Jun 30', delegate:'' },
-  { id:71, status:'todo', name:'Do my boating licence', biz:'Personal', horizon:'Someday', added:'', due:'', delegate:'' },
-  { id:72, status:'todo', name:'Look into Zoho CRM', biz:'Hush', horizon:'Someday', added:'', due:'', delegate:'' },
-  { id:73, status:'todo', name:'Look into solar for the liquor store', biz:'Liquor Store', horizon:'Someday', added:'', due:'', delegate:'' },
-  { id:74, status:'todo', name:'Arthur Carpet Box', biz:'Hush', horizon:'Someday', added:'', due:'', delegate:'' },
-  { id:75, status:'todo', name:'Order more dish displays for Hush x5', biz:'Hush', horizon:'This Month', added:'', due:'Jun 27', delegate:'' },
-]
-
-const MORNING   = ['6:00','6:30 AM','7:00','7:30','8:00','8:30','9:00','9:30','10:00','10:30','11:00','11:30','12:00']
-const AFTERNOON = ['12:30','1:00','1:30','2:00','2:30','3:00','3:30','4:00','4:30','5:00','5:30','6:00','6:30']
-const APPTS = {
-  '6:30 AM': { label:'Swim', bg:'#1a73e8' },
-  '8:30': { label:'Dr. Beavan', bg:'#8e24aa' },
-  '5:00': { label:'Lacrosse', bg:'#f4511e' },
 }
 const DEFAULT_GOALS = ['CrossFit Quarterfinals prep','Premium Appliance Gallery launch','Stone Ridge Estates']
 
@@ -169,8 +84,7 @@ function FlagBtn({ flagged, onClick }) {
   const [hov, setHov] = useState(false)
   const color = flagged ? '#dc2626' : (hov ? '#fca5a5' : '#d1d5db')
   return (
-    <button onClick={onClick}
-      title={flagged ? 'Flagged for Do first — click to unflag' : 'Click to flag for Do first'}
+    <button onClick={onClick} title={flagged ? 'Flagged — click to unflag' : 'Flag for Do first'}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{ background:'none', border:'none', cursor:'pointer', padding:'2px 5px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:4 }}>
       <svg width="13" height="14" viewBox="0 0 13 14" fill="none">
@@ -202,18 +116,15 @@ function DropMenu({ trigger, children, open, setOpen }) {
     </div>
   )
 }
-
 function DropOpt({ label, dot, dotStyle, active, onClick }) {
   return (
-    <button onClick={onClick}
-      style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'8px 12px', background:active?'#f0f4ff':'#fff', border:'none', cursor:'pointer', fontSize:11, color:'#1a1a1a', fontFamily:'inherit', textAlign:'left' }}>
+    <button onClick={onClick} style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'8px 12px', background:active?'#f0f4ff':'#fff', border:'none', cursor:'pointer', fontSize:11, color:'#1a1a1a', fontFamily:'inherit', textAlign:'left' }}>
       {dot !== undefined && <span style={{ width:8, height:8, borderRadius:'50%', background:dot||'transparent', flexShrink:0, ...dotStyle }} />}
       {label}
       {active && <span style={{ marginLeft:'auto', color:'#3b82f6', fontSize:12 }}>✓</span>}
     </button>
   )
 }
-
 function StatusDropdown({ status, taskId, onSelect }) {
   const [open, setOpen] = useState(false)
   const cur = STATUS_OPTS.find(o=>o.value===status)||STATUS_OPTS[0]
@@ -228,7 +139,6 @@ function StatusDropdown({ status, taskId, onSelect }) {
     </DropMenu>
   )
 }
-
 function HorizonDropdown({ horizon, taskId, onSelect }) {
   const [open, setOpen] = useState(false)
   const c = HORIZON_COLORS[horizon]||HORIZON_COLORS['Someday']
@@ -245,7 +155,6 @@ function HorizonDropdown({ horizon, taskId, onSelect }) {
     </DropMenu>
   )
 }
-
 function BizDropdown({ biz, taskId, onSelect }) {
   const [open, setOpen] = useState(false)
   const c = BIZ[biz]||{ bg:'#f1f5f9', color:'#475569' }
@@ -268,16 +177,14 @@ function BizDropdown({ biz, taskId, onSelect }) {
 function OverdueBadge() {
   return <span style={{ fontSize:9, background:'#fee2e2', color:'#dc2626', padding:'1px 4px', borderRadius:3, marginRight:5, fontWeight:600 }}>overdue</span>
 }
-
 function ArchiveXBtn({ onClick }) {
   return (
     <button onClick={onClick} title="Archive this task"
       style={{ background:'none', border:'none', cursor:'pointer', color:'#d1d5db', fontSize:16, lineHeight:1, padding:'0 4px', fontFamily:'inherit' }}
-      onMouseEnter={e => e.currentTarget.style.color='#f97316'}
-      onMouseLeave={e => e.currentTarget.style.color='#d1d5db'}>×</button>
+      onMouseEnter={e=>e.currentTarget.style.color='#f97316'}
+      onMouseLeave={e=>e.currentTarget.style.color='#d1d5db'}>×</button>
   )
 }
-
 function EditCell({ value, taskId, field, editing, editVal, setEditVal, onStart, onSave, onCancel, inputStyle={}, spanStyle={} }) {
   if (editing?.id===taskId && editing?.field===field) {
     return (
@@ -292,15 +199,13 @@ function EditCell({ value, taskId, field, editing, editVal, setEditVal, onStart,
     </span>
   )
 }
-
 function DateCell({ value, taskId, onSetDate, spanStyle={} }) {
   const [open, setOpen] = useState(false)
   if (open) {
     return (
       <input type="date" autoFocus defaultValue={toDatInput(value)}
         onChange={e => { if (e.target.value) { onSetDate(taskId,e.target.value); setOpen(false) } }}
-        onBlur={() => setOpen(false)}
-        style={{ ...editInp, width:140 }} />
+        onBlur={() => setOpen(false)} style={{ ...editInp, width:140 }} />
     )
   }
   return (
@@ -310,7 +215,6 @@ function DateCell({ value, taskId, onSetDate, spanStyle={} }) {
     </span>
   )
 }
-
 function SortTh({ label, field, sort, onSort, style={} }) {
   const active = sort.field===field
   return (
@@ -322,17 +226,13 @@ function SortTh({ label, field, sort, onSort, style={} }) {
     </th>
   )
 }
-
 function SearchInput({ value, onChange }) {
   return (
     <div style={{ position:'relative', display:'inline-block' }}>
       <span style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', color:'#bbb', fontSize:13, pointerEvents:'none' }}>⌕</span>
       <input value={value} onChange={e=>onChange(e.target.value)} placeholder="Search tasks..."
         style={{ border:'1px solid #e5e7eb', borderRadius:6, padding:'4px 24px 4px 26px', fontSize:11, width:170, fontFamily:'inherit', outline:'none', color:'#1a1a1a' }} />
-      {value && (
-        <button onClick={() => onChange('')}
-          style={{ position:'absolute', right:6, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#aaa', fontSize:13, padding:0, lineHeight:1 }}>×</button>
-      )}
+      {value && <button onClick={() => onChange('')} style={{ position:'absolute', right:6, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#aaa', fontSize:13, padding:0, lineHeight:1 }}>×</button>}
     </div>
   )
 }
@@ -369,9 +269,7 @@ function MasterFilterBar({ filterView, setFilterView, filterBiz, setFilterBiz })
           background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.6)',
           border:'1px solid rgba(255,255,255,0.12)', borderRadius:6,
           padding:'4px 10px', fontSize:11, cursor:'pointer', fontFamily:'inherit',
-        }}>
-          {filterBiz==='All'?'All businesses':filterBiz} <span style={{ fontSize:9 }}>▾</span>
-        </button>
+        }}>{filterBiz==='All'?'All businesses':filterBiz} <span style={{ fontSize:9 }}>▾</span></button>
         {bizOpen && (
           <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:400, background:'#fff', border:'1px solid #e5e7eb', borderRadius:8, boxShadow:'0 8px 24px rgba(0,0,0,0.15)', minWidth:160, overflow:'hidden', maxHeight:300, overflowY:'auto' }}>
             {['All',...Object.keys(BIZ)].map(b => (
@@ -379,8 +277,7 @@ function MasterFilterBar({ filterView, setFilterView, filterBiz, setFilterBiz })
                 style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'7px 12px', background:filterBiz===b?'#f0f4ff':'#fff', border:'none', cursor:'pointer', fontSize:11, color:'#1a1a1a', fontFamily:'inherit', textAlign:'left' }}>
                 {b!=='All' && <span style={{ width:8, height:8, borderRadius:'50%', background:BIZ[b]?.bg, border:`1px solid ${BIZ[b]?.color}`, flexShrink:0 }} />}
                 {b==='All' && <span style={{ width:8, flexShrink:0 }} />}
-                {b}
-                {filterBiz===b && <span style={{ marginLeft:'auto', color:'#3b82f6', fontSize:12 }}>✓</span>}
+                {b}{filterBiz===b && <span style={{ marginLeft:'auto', color:'#3b82f6', fontSize:12 }}>✓</span>}
               </button>
             ))}
           </div>
@@ -392,6 +289,10 @@ function MasterFilterBar({ filterView, setFilterView, filterBiz, setFilterBiz })
 
 // ── Calendar ──────────────────────────────────────────────────────────
 
+const MORNING   = ['6:00','6:30 AM','7:00','7:30','8:00','8:30','9:00','9:30','10:00','10:30','11:00','11:30','12:00']
+const AFTERNOON = ['12:30','1:00','1:30','2:00','2:30','3:00','3:30','4:00','4:30','5:00','5:30','6:00','6:30']
+const APPTS = { '6:30 AM':{ label:'Swim', bg:'#1a73e8' }, '8:30':{ label:'Dr. Beavan', bg:'#8e24aa' }, '5:00':{ label:'Lacrosse', bg:'#f4511e' } }
+
 function CalSlot({ time }) {
   const a = APPTS[time]
   return (
@@ -401,7 +302,6 @@ function CalSlot({ time }) {
     </div>
   )
 }
-
 function Calendar() {
   return (
     <div style={card}>
@@ -464,12 +364,10 @@ function DoFirst({ flagged, onUnflag, onSetStatus, onArchive }) {
           <span style={{ color:'#dc2626', fontWeight:500 }}>Do first</span>
           {flagged.length > 0 && <span style={{ background:'#fecaca', color:'#b91c1c', fontSize:10, padding:'0 6px', borderRadius:20 }}>{flagged.length}</span>}
         </div>
-        {flagged.length > 0 && <span style={{ fontSize:9, color:'#fca5a5', fontWeight:400 }}>☑ complete &amp; archive &nbsp;|&nbsp; × unflag only</span>}
+        {flagged.length > 0 && <span style={{ fontSize:9, color:'#fca5a5', fontWeight:400 }}>☑ complete & archive &nbsp;|&nbsp; × unflag only</span>}
       </div>
       {flagged.length === 0 ? (
-        <div style={{ padding:'10px 14px', fontSize:11, color:'#bbb', textAlign:'center' }}>
-          Go to <strong>Master list</strong> and click a grey flag to add tasks here
-        </div>
+        <div style={{ padding:'10px 14px', fontSize:11, color:'#bbb', textAlign:'center' }}>Go to <strong>Master list</strong> and click a grey flag to add tasks here</div>
       ) : (
         flagged.map(t => (
           <div key={t.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 14px', borderBottom:'1px solid #fef2f2' }}>
@@ -517,8 +415,7 @@ function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetB
               <td style={{ padding:'5px 8px' }}>
                 {isMaster
                   ? <FlagBtn flagged={t.flagged} onClick={() => onCheckLeft(t.id)} />
-                  : <input type="checkbox" onChange={() => onCheckLeft(t.id)}
-                      title="Mark complete — moves to Archive"
+                  : <input type="checkbox" onChange={() => onCheckLeft(t.id)} title="Mark complete — moves to Archive"
                       style={{ cursor:'pointer', width:13, height:13, accentColor:'#22c55e' }} />
                 }
               </td>
@@ -539,9 +436,7 @@ function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetB
                   <EditCell value={t.delegate} taskId={t.id} field="delegate" {...ep} inputStyle={{ width:80 }} spanStyle={{ color:'#555' }} />
                 </td>
               )}
-              <td style={{ padding:'5px 4px' }}>
-                <ArchiveXBtn onClick={() => onArchive(t.id)} />
-              </td>
+              <td style={{ padding:'5px 4px' }}><ArchiveXBtn onClick={() => onArchive(t.id)} /></td>
             </tr>
           ))}
           {tasks.length === 0 && (
@@ -568,9 +463,7 @@ function ArchiveTable({ tasks, onRestore, onDelete }) {
         <SearchInput value={search} onChange={setSearch} />
       </div>
       {filtered.length === 0 ? (
-        <div style={{ padding:'24px', textAlign:'center', color:'#bbb', fontSize:12 }}>
-          {tasks.length === 0 ? 'No completed tasks yet.' : 'No results.'}
-        </div>
+        <div style={{ padding:'24px', textAlign:'center', color:'#bbb', fontSize:12 }}>{tasks.length===0?'No completed tasks yet.':'No results.'}</div>
       ) : (
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -595,10 +488,8 @@ function ArchiveTable({ tasks, onRestore, onDelete }) {
                     <button onClick={() => onRestore(t.id)} style={{ background:'#eff6ff', color:'#1e40af', border:'none', borderRadius:6, padding:'4px 10px', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>Restore</button>
                   </td>
                   <td style={{ padding:'7px 10px' }}>
-                    <button onClick={() => { if (window.confirm('Permanently delete? This cannot be undone.')) onDelete(t.id) }}
-                      style={{ background:'#fef2f2', color:'#dc2626', border:'1px solid #fecaca', borderRadius:6, padding:'4px 10px', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>
-                      Delete
-                    </button>
+                    <button onClick={() => { if (window.confirm('Permanently delete? Cannot be undone.')) onDelete(t.id) }}
+                      style={{ background:'#fef2f2', color:'#dc2626', border:'1px solid #fecaca', borderRadius:6, padding:'4px 10px', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>Delete</button>
                   </td>
                 </tr>
               ))}
@@ -658,9 +549,22 @@ function CrossFitCountdown() {
   )
 }
 
-function RightPanel({ tasks, goals, setGoals }) {
-  const [mindset, setMindset] = useState(() => localStorage.getItem('hank-mindset')||'Lead the team with confidence and clarity.')
-  useEffect(() => { localStorage.setItem('hank-mindset', mindset) }, [mindset])
+function RightPanel({ tasks, goals, setGoals, syncing }) {
+  const [mindset, setMindset] = useState('Lead the team with confidence and clarity.')
+  const mindsetRef = useRef(null)
+
+  useEffect(() => {
+    fetch('/api/settings/mindset').then(r=>r.json()).then(d => { if (d.value) setMindset(d.value) }).catch(()=>{})
+  }, [])
+
+  const saveMindset = (val) => {
+    setMindset(val)
+    clearTimeout(mindsetRef.current)
+    mindsetRef.current = setTimeout(() => {
+      fetch('/api/settings/mindset', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ value:val }) }).catch(()=>{})
+    }, 1500)
+  }
+
   const open = tasks.filter(t=>t.status!=='done')
   const stats = [
     { label:'Overdue',     value:open.filter(t=>t.overdue).length,              color:'#dc2626' },
@@ -675,7 +579,7 @@ function RightPanel({ tasks, goals, setGoals }) {
         <div style={{ ...cardHead, background:'#e0f2fe', borderBottom:'1px solid #bae6fd', color:'#0369a1' }}>Mental mindset</div>
         <div style={{ padding:12 }}>
           <div style={{ fontSize:10, color:'#7dd3fc', marginBottom:6 }}>Hank texts you each morning. Your reply shows here.</div>
-          <textarea value={mindset} onChange={e=>setMindset(e.target.value)} rows={3}
+          <textarea value={mindset} onChange={e=>saveMindset(e.target.value)} rows={3}
             style={{ width:'100%', border:'1px solid #bae6fd', borderRadius:6, padding:'8px 10px', fontSize:12, fontFamily:'inherit', color:'#0c4a6e', background:'#e0f2fe', resize:'none', lineHeight:1.5, boxSizing:'border-box' }} />
         </div>
       </div>
@@ -684,7 +588,10 @@ function RightPanel({ tasks, goals, setGoals }) {
         <EditableGoals goals={goals} setGoals={setGoals} />
       </div>
       <div style={card}>
-        <div style={cardHead}>Today at a glance</div>
+        <div style={{ ...cardHead, justifyContent:'space-between' }}>
+          <span>Today at a glance</span>
+          {syncing && <span style={{ fontSize:9, color:'#94a3b8' }}>saving...</span>}
+        </div>
         <div style={{ padding:'10px 12px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
           {stats.map(s => (
             <div key={s.label} style={{ background:'#f8fafc', borderRadius:8, padding:'6px 4px', textAlign:'center' }}>
@@ -711,18 +618,50 @@ export default function App() {
   const [sort,         setSort]         = useState({ field:null, dir:'asc' })
   const [dailySearch,  setDailySearch]  = useState('')
   const [masterSearch, setMasterSearch] = useState('')
+  const [tasks,        setTasks]        = useState([])
+  const [goals,        setGoals]        = useState(DEFAULT_GOALS)
+  const [loading,      setLoading]      = useState(true)
+  const [syncing,      setSyncing]      = useState(false)
+  const [error,        setError]        = useState(null)
+  const taskSyncRef = useRef(null)
+  const goalSyncRef = useRef(null)
 
-  const [tasks, setTasks] = useState(() => {
-    const s = localStorage.getItem('hank-tasks-v2')
-    return recalcOverdue(s ? JSON.parse(s) : INITIAL_TASKS.map(t=>({...t,flagged:false})))
-  })
-  useEffect(() => { localStorage.setItem('hank-tasks-v2', JSON.stringify(tasks)) }, [tasks])
+  // Load from backend on mount
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/tasks').then(r => r.json()),
+      fetch('/api/goals').then(r => r.json()),
+    ]).then(([tasksData, goalsData]) => {
+      setTasks(recalcOverdue(tasksData))
+      if (goalsData.length > 0) setGoals(goalsData)
+      setLoading(false)
+    }).catch(err => {
+      console.error('Load failed:', err)
+      setError('Cannot connect to Hank backend. Make sure the server is running.')
+      setLoading(false)
+    })
+  }, [])
 
-  const [goals, setGoals] = useState(() => {
-    const s = localStorage.getItem('hank-goals-v1')
-    return s ? JSON.parse(s) : DEFAULT_GOALS
-  })
-  useEffect(() => { localStorage.setItem('hank-goals-v1', JSON.stringify(goals)) }, [goals])
+  // Sync tasks (debounced)
+  useEffect(() => {
+    if (loading) return
+    clearTimeout(taskSyncRef.current)
+    setSyncing(true)
+    taskSyncRef.current = setTimeout(() => {
+      fetch('/api/tasks/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(tasks) })
+        .then(() => setSyncing(false))
+        .catch(() => setSyncing(false))
+    }, SYNC_DELAY)
+  }, [tasks])
+
+  // Sync goals (debounced)
+  useEffect(() => {
+    if (loading) return
+    clearTimeout(goalSyncRef.current)
+    goalSyncRef.current = setTimeout(() => {
+      fetch('/api/goals/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(goals) }).catch(()=>{})
+    }, SYNC_DELAY)
+  }, [goals])
 
   const toggleFlag    = id => setTasks(p=>p.map(t=>t.id===id?{...t,flagged:!t.flagged}:t))
   const deleteTask    = id => setTasks(p=>p.filter(t=>t.id!==id))
@@ -737,10 +676,30 @@ export default function App() {
     const blob = new Blob([JSON.stringify({ tasks, goals, exported: new Date().toISOString() }, null, 2)], { type:'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = `hank-backup-${new Date().toISOString().split('T')[0]}.json`
-    a.click()
+    a.href = url; a.download = `hank-backup-${new Date().toISOString().split('T')[0]}.json`; a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const importData = (file) => {
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target.result)
+        if (data.tasks) {
+          const fixed = recalcOverdue(data.tasks)
+          await fetch('/api/tasks/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fixed) })
+          setTasks(fixed)
+        }
+        if (data.goals && data.goals.length > 0) {
+          await fetch('/api/goals/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data.goals) })
+          setGoals(data.goals)
+        }
+        alert(`Imported ${data.tasks?.length || 0} tasks successfully.`)
+      } catch (err) {
+        alert('Import failed: ' + err.message)
+      }
+    }
+    reader.readAsText(file)
   }
 
   const addTask = () => {
@@ -774,10 +733,8 @@ export default function App() {
   const open     = tasks.filter(t=>t.status!=='done')
   const archived = tasks.filter(t=>t.status==='done')
   const flagged  = open.filter(t=>t.flagged)
-
-  const dailyBase = open.filter(t => !t.flagged && (t.overdue || dueWithinDays(t.due,DAYS_AHEAD)))
+  const dailyBase = open.filter(t=>!t.flagged&&(t.overdue||dueWithinDays(t.due,DAYS_AHEAD)))
   const dailyTasks = applySort(dailySearch ? dailyBase.filter(t=>t.name.toLowerCase().includes(dailySearch.toLowerCase())) : dailyBase)
-
   const masterBase = applySort((() => {
     let r = open
     if (filterBiz!=='All') r = r.filter(t=>t.biz===filterBiz)
@@ -802,31 +759,44 @@ export default function App() {
       fontSize:12, fontWeight:view===id?500:400, color:view===id?'#fff':'rgba(255,255,255,0.45)',
       cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:5,
     }}>
-      {label}
-      {badge>0 && <span style={{ background:'rgba(255,255,255,0.15)', fontSize:10, padding:'0 5px', borderRadius:10 }}>{badge}</span>}
+      {label}{badge>0&&<span style={{ background:'rgba(255,255,255,0.15)', fontSize:10, padding:'0 5px', borderRadius:10 }}>{badge}</span>}
     </button>
+  )
+
+  if (loading) return (
+    <div style={{ background:'#0f0f0f', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ textAlign:'center', color:'#fff' }}>
+        <div style={{ fontSize:32, fontWeight:600, letterSpacing:4, marginBottom:16 }}>HANK</div>
+        <div style={{ color:'rgba(255,255,255,0.4)', fontSize:13 }}>Loading your tasks...</div>
+      </div>
+    </div>
+  )
+
+  if (error) return (
+    <div style={{ background:'#0f0f0f', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ textAlign:'center', color:'#fff', maxWidth:400 }}>
+        <div style={{ fontSize:32, fontWeight:600, letterSpacing:4, marginBottom:16 }}>HANK</div>
+        <div style={{ color:'#f87171', fontSize:13, marginBottom:8 }}>{error}</div>
+        <div style={{ color:'rgba(255,255,255,0.4)', fontSize:11 }}>Run: node server/server.js</div>
+      </div>
+    </div>
   )
 
   return (
     <div style={{ background:'#0f0f0f', minHeight:'100vh', padding:16, boxSizing:'border-box' }}>
       {showAdd && <AddTaskModal newTask={newTask} setNewTask={setNewTask} onAdd={addTask} onClose={()=>setShowAdd(false)} />}
       <div style={{ maxWidth:1600, margin:'0 auto' }}>
-
         <div style={{ display:'flex', alignItems:'center', gap:16, paddingBottom:14, marginBottom:14, borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
           <span style={{ fontSize:32, fontWeight:600, letterSpacing:4, color:'#fff' }}>HANK</span>
           <span style={{ fontSize:13, color:'#fff', opacity:0.7 }}>{getToday()}</span>
           <div style={{ marginLeft:'auto', display:'flex', gap:4 }}>
-            {tabBtn('daily','Daily view')}
-            {tabBtn('master','Master list')}
-            {tabBtn('archive','Archive',archived.length)}
+            {tabBtn('daily','Daily view')}{tabBtn('master','Master list')}{tabBtn('archive','Archive',archived.length)}
           </div>
-          <button onClick={exportData} style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'5px 12px', fontSize:11, color:'rgba(255,255,255,0.4)', cursor:'pointer', fontFamily:'inherit' }}
-            title="Download a backup of all your tasks">
-            Export backup
-          </button>
-          <button onClick={()=>setShowAdd(true)} style={{ background:'#1e40af', border:'none', borderRadius:6, padding:'6px 16px', fontSize:12, color:'#fff', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>
-            + Add task
-          </button>
+          <button onClick={exportData} style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'5px 12px', fontSize:11, color:'rgba(255,255,255,0.4)', cursor:'pointer', fontFamily:'inherit' }}>Export</button>
+          <label style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'5px 12px', fontSize:11, color:'rgba(255,255,255,0.4)', cursor:'pointer', fontFamily:'inherit' }}>
+            Import<input type="file" accept=".json" onChange={e=>e.target.files[0]&&importData(e.target.files[0])} style={{ display:'none' }} />
+          </label>
+          <button onClick={()=>setShowAdd(true)} style={{ background:'#1e40af', border:'none', borderRadius:6, padding:'6px 16px', fontSize:12, color:'#fff', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>+ Add task</button>
         </div>
 
         {view==='master' && <MasterFilterBar filterView={filterView} setFilterView={setFilterView} filterBiz={filterBiz} setFilterBiz={setFilterBiz} />}
@@ -846,7 +816,7 @@ export default function App() {
                 <TaskTable tasks={dailyTasks} mode="daily" onCheckLeft={archiveTask} {...sharedProps} showDelegate={false} />
               </div>
             </div>
-            <div style={{ position:'sticky', top:16 }}><RightPanel tasks={tasks} goals={goals} setGoals={setGoals} /></div>
+            <div style={{ position:'sticky', top:16 }}><RightPanel tasks={tasks} goals={goals} setGoals={setGoals} syncing={syncing} /></div>
           </div>
         )}
 

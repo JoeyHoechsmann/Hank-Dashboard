@@ -1,33 +1,35 @@
-const Database = require('better-sqlite3')
-const path = require('path')
+const { Pool } = require('pg')
 
-const db = new Database(path.join(__dirname, 'hank.db'))
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+})
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS tasks (
-    id       INTEGER PRIMARY KEY,
-    status   TEXT    DEFAULT 'todo',
-    name     TEXT    NOT NULL,
-    biz      TEXT    DEFAULT '',
-    horizon  TEXT    DEFAULT 'This Week',
-    added    TEXT    DEFAULT '',
-    due      TEXT    DEFAULT '',
-    overdue  INTEGER DEFAULT 0,
-    flagged  INTEGER DEFAULT 0,
-    delegate TEXT    DEFAULT ''
-  );
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id       INTEGER  PRIMARY KEY,
+      status   TEXT     NOT NULL DEFAULT 'todo',
+      name     TEXT     NOT NULL DEFAULT '',
+      biz      TEXT     NOT NULL DEFAULT '',
+      horizon  TEXT     NOT NULL DEFAULT 'This Week',
+      added    TEXT     NOT NULL DEFAULT '',
+      due      TEXT     NOT NULL DEFAULT '',
+      overdue  BOOLEAN  NOT NULL DEFAULT false,
+      flagged  BOOLEAN  NOT NULL DEFAULT false,
+      delegate TEXT     NOT NULL DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS goals (
+      id       SERIAL   PRIMARY KEY,
+      text     TEXT     NOT NULL,
+      position INTEGER  NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    );
+  `)
+  console.log('Database tables ready')
+}
 
-  CREATE TABLE IF NOT EXISTS goals (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    text     TEXT    NOT NULL,
-    position INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS settings (
-    key   TEXT PRIMARY KEY,
-    value TEXT
-  );
-`)
-
-console.log('Database ready: hank.db')
-module.exports = db
+module.exports = { pool, initDB }
