@@ -12,8 +12,6 @@ const PORT = process.env.PORT || 3001
 app.use(cors())
 app.use(express.json())
 
-// ── Google OAuth setup ────────────────────────────────────────────────
-
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -47,7 +45,6 @@ app.get('/api/auth/google/callback', async (req, res) => {
         ['google_refresh_token', tokens.refresh_token]
       )
     }
-    // Also store access token in case refresh token not returned
     if (tokens.access_token) {
       await pool.query(
         'INSERT INTO settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
@@ -61,7 +58,16 @@ app.get('/api/auth/google/callback', async (req, res) => {
   }
 })
 
-// ── Calendar events ───────────────────────────────────────────────────
+// ── Calendar events (all calendars, real colors) ──────────────────────
+
+function colorFromId(id) {
+  const colors = {
+    '1':'#7986cb','2':'#33b679','3':'#8e24aa','4':'#e67c73',
+    '5':'#f6bf26','6':'#f4511e','7':'#039be5','8':'#616161',
+    '9':'#3f51b5','10':'#0b8043','11':'#d50000'
+  }
+  return colors[id] || '#1a73e8'
+}
 
 app.get('/api/calendar/today', async (req, res) => {
   try {
@@ -82,43 +88,52 @@ app.get('/api/calendar/today', async (req, res) => {
     })
 
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
+
+    // Get all calendars and their colors
+    const calListRes = await calendar.calendarList.list()
+    const calendars  = calListRes.data.items || []
+    const calColors  = {}
+    calendars.forEach(cal => { calColors[cal.id] = cal.backgroundColor || '#1a73e8' })
+
     const now = new Date()
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
     const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
 
-    const response = await calendar.events.list({
-      calendarId: 'primary',
-      timeMin: startOfDay.toISOString(),
-      timeMax: endOfDay.toISOString(),
-      singleEvents: true,
-      orderBy: 'startTime',
-      maxResults: 30
-    })
+    // Fetch events from every selected calendar
+    const allEvents = []
+    for (const cal of calendars) {
+      if (cal.selected === false) continue
+      try {
+        const evRes = await calendar.events.list({
+          calendarId: cal.id,
+          timeMin: startOfDay.toISOString(),
+          timeMax: endOfDay.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 50
+        })
+        ;(evRes.data.items || []).forEach(e => {
+          allEvents.push({
+            id:     `${cal.id}_${e.id}`,
+            title:  e.summary || 'Untitled',
+            start:  e.start.dateTime || e.start.date,
+            end:    e.end.dateTime   || e.end.date,
+            allDay: !e.start.dateTime,
+            color:  e.colorId ? colorFromId(e.colorId) : (calColors[cal.id] || '#1a73e8')
+          })
+        })
+      } catch (calErr) {
+        console.error(`Skipping calendar ${cal.id}:`, calErr.message)
+      }
+    }
 
-    const events = (response.data.items || []).map(e => ({
-      id:     e.id,
-      title:  e.summary || 'Untitled',
-      start:  e.start.dateTime || e.start.date,
-      end:    e.end.dateTime   || e.end.date,
-      allDay: !e.start.dateTime,
-      color:  e.colorId ? colorFromId(e.colorId) : '#1a73e8'
-    }))
-
-    res.json({ connected: true, events })
+    allEvents.sort((a, b) => new Date(a.start) - new Date(b.start))
+    res.json({ connected: true, events: allEvents })
   } catch (err) {
     console.error('Calendar fetch error:', err.message)
     res.json({ connected: false, events: [], error: err.message })
   }
 })
-
-function colorFromId(id) {
-  const colors = {
-    '1':'#7986cb','2':'#33b679','3':'#8e24aa','4':'#e67c73',
-    '5':'#f6bf26','6':'#f4511e','7':'#039be5','8':'#616161',
-    '9':'#3f51b5','10':'#0b8043','11':'#d50000'
-  }
-  return colors[id] || '#1a73e8'
-}
 
 // ── Tasks ─────────────────────────────────────────────────────────────
 
@@ -126,9 +141,7 @@ app.get('/api/tasks', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM tasks ORDER BY id')
     res.json(rows)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 app.post('/api/tasks/sync', async (req, res) => {
@@ -149,9 +162,7 @@ app.post('/api/tasks/sync', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK')
     res.status(500).json({ error: err.message })
-  } finally {
-    client.release()
-  }
+  } finally { client.release() }
 })
 
 app.put('/api/tasks/:id', async (req, res) => {
@@ -163,18 +174,14 @@ app.put('/api/tasks/:id', async (req, res) => {
       [t.status,t.name,t.biz,t.horizon,t.added||'',t.due||'',t.overdue||false,t.flagged||false,t.delegate||'',req.params.id]
     )
     res.json({ success: true })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 app.delete('/api/tasks/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM tasks WHERE id=$1', [req.params.id])
     res.json({ success: true })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 app.post('/api/tasks', async (req, res) => {
@@ -186,9 +193,7 @@ app.post('/api/tasks', async (req, res) => {
       [t.id,t.status,t.name,t.biz,t.horizon,t.added||'',t.due||'',t.overdue||false,t.flagged||false,t.delegate||'']
     )
     res.json({ success: true })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // ── Goals ─────────────────────────────────────────────────────────────
@@ -197,9 +202,7 @@ app.get('/api/goals', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT text FROM goals ORDER BY position')
     res.json(rows.map(r => r.text))
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 app.post('/api/goals/sync', async (req, res) => {
@@ -216,9 +219,7 @@ app.post('/api/goals/sync', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK')
     res.status(500).json({ error: err.message })
-  } finally {
-    client.release()
-  }
+  } finally { client.release() }
 })
 
 // ── Settings ──────────────────────────────────────────────────────────
@@ -227,9 +228,7 @@ app.get('/api/settings/:key', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT value FROM settings WHERE key=$1', [req.params.key])
     res.json({ value: rows[0] ? rows[0].value : null })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 app.put('/api/settings/:key', async (req, res) => {
@@ -239,9 +238,7 @@ app.put('/api/settings/:key', async (req, res) => {
       [req.params.key, req.body.value]
     )
     res.json({ success: true })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // ── Static (production) ───────────────────────────────────────────────

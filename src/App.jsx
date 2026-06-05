@@ -34,18 +34,20 @@ const HORIZON_COLORS = {
 }
 const DEFAULT_GOALS = ['CrossFit Quarterfinals prep','Premium Appliance Gallery launch','Stone Ridge Estates']
 
-// Time slots with actual hour/minute values for event matching
-const ALL_SLOTS = [
-  {h:6,m:0,label:'6:00'},{h:6,m:30,label:'6:30 AM'},{h:7,m:0,label:'7:00'},{h:7,m:30,label:'7:30'},
-  {h:8,m:0,label:'8:00'},{h:8,m:30,label:'8:30'},{h:9,m:0,label:'9:00'},{h:9,m:30,label:'9:30'},
-  {h:10,m:0,label:'10:00'},{h:10,m:30,label:'10:30'},{h:11,m:0,label:'11:00'},{h:11,m:30,label:'11:30'},
-  {h:12,m:0,label:'12:00'},{h:12,m:30,label:'12:30'},{h:13,m:0,label:'1:00'},{h:13,m:30,label:'1:30'},
-  {h:14,m:0,label:'2:00'},{h:14,m:30,label:'2:30'},{h:15,m:0,label:'3:00'},{h:15,m:30,label:'3:30'},
-  {h:16,m:0,label:'4:00'},{h:16,m:30,label:'4:30'},{h:17,m:0,label:'5:00'},{h:17,m:30,label:'5:30'},
-  {h:18,m:0,label:'6:00'},{h:18,m:30,label:'6:30'},
-]
-const MORNING_SLOTS   = ALL_SLOTS.filter(s => s.h < 12 || (s.h===12 && s.m===0))
-const AFTERNOON_SLOTS = ALL_SLOTS.filter(s => s.h > 12 || (s.h===12 && s.m===30))
+// Slots from 5 AM to 10 PM
+function makeSlots(startH, endH) {
+  const slots = []
+  for (let h = startH; h <= endH; h++) {
+    for (const m of [0, 30]) {
+      if (h === endH && m === 30) break
+      const h12 = h === 0 || h === 12 ? 12 : h % 12
+      const label = `${h12}:${m === 0 ? '00' : '30'}`
+      slots.push({ h, m, label, isNoon: h === 12 && m === 0 })
+    }
+  }
+  return slots
+}
+const ALL_SLOTS = makeSlots(5, 22)
 
 // ── Utilities ─────────────────────────────────────────────────────────
 
@@ -321,13 +323,12 @@ function CalSlot({ slot, events }) {
 
 function Calendar() {
   const [calData, setCalData] = useState({ connected: false, events: [] })
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/calendar/today')
       .then(r => r.json())
-      .then(data => { setCalData(data); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(setCalData)
+      .catch(() => {})
   }, [])
 
   const events = calData.events || []
@@ -336,26 +337,21 @@ function Calendar() {
     <div style={card}>
       <div style={{ ...cardHead, justifyContent:'space-between' }}>
         <span>Today's schedule</span>
-        {!loading && !calData.connected && (
-          <a href="/api/auth/google" style={{ fontSize:10, color:'#3b82f6', textDecoration:'none', fontWeight:500 }}>
-            Connect Calendar
-          </a>
-        )}
-        {calData.connected && <span style={{ fontSize:9, color:'#22c55e' }}>● Live</span>}
+        {!calData.connected
+          ? <a href="/api/auth/google" style={{ fontSize:10, color:'#3b82f6', textDecoration:'none', fontWeight:500 }}>Connect Calendar</a>
+          : <span style={{ fontSize:9, color:'#22c55e' }}>● Live</span>
+        }
       </div>
-      <div style={{ padding:'10px 12px' }}>
-        {!loading && !calData.connected && (
-          <div style={{ padding:'8px 0', textAlign:'center' }}>
+      <div style={{ padding:'10px 12px', maxHeight:'65vh', overflowY:'auto' }}>
+        {!calData.connected && (
+          <div style={{ padding:'6px 0 10px', textAlign:'center' }}>
             <a href="/api/auth/google" style={{ fontSize:11, color:'#3b82f6', textDecoration:'none' }}>
-              Connect Google Calendar to see your schedule
+              Connect Google Calendar
             </a>
           </div>
         )}
         <div style={{ fontSize:9, fontWeight:600, color:'#c0c0c0', letterSpacing:0.5, marginBottom:4 }}>MORNING</div>
-        {MORNING_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} />)}
-        <div style={{ height:8 }} />
-        <div style={{ fontSize:9, fontWeight:600, color:'#c0c0c0', letterSpacing:0.5, margin:'4px 0' }}>AFTERNOON</div>
-        {AFTERNOON_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} />)}
+        {ALL_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} />)}
       </div>
     </div>
   )
