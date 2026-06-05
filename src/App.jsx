@@ -34,6 +34,19 @@ const HORIZON_COLORS = {
 }
 const DEFAULT_GOALS = ['CrossFit Quarterfinals prep','Premium Appliance Gallery launch','Stone Ridge Estates']
 
+// Time slots with actual hour/minute values for event matching
+const ALL_SLOTS = [
+  {h:6,m:0,label:'6:00'},{h:6,m:30,label:'6:30 AM'},{h:7,m:0,label:'7:00'},{h:7,m:30,label:'7:30'},
+  {h:8,m:0,label:'8:00'},{h:8,m:30,label:'8:30'},{h:9,m:0,label:'9:00'},{h:9,m:30,label:'9:30'},
+  {h:10,m:0,label:'10:00'},{h:10,m:30,label:'10:30'},{h:11,m:0,label:'11:00'},{h:11,m:30,label:'11:30'},
+  {h:12,m:0,label:'12:00'},{h:12,m:30,label:'12:30'},{h:13,m:0,label:'1:00'},{h:13,m:30,label:'1:30'},
+  {h:14,m:0,label:'2:00'},{h:14,m:30,label:'2:30'},{h:15,m:0,label:'3:00'},{h:15,m:30,label:'3:30'},
+  {h:16,m:0,label:'4:00'},{h:16,m:30,label:'4:30'},{h:17,m:0,label:'5:00'},{h:17,m:30,label:'5:30'},
+  {h:18,m:0,label:'6:00'},{h:18,m:30,label:'6:30'},
+]
+const MORNING_SLOTS   = ALL_SLOTS.filter(s => s.h < 12 || (s.h===12 && s.m===0))
+const AFTERNOON_SLOTS = ALL_SLOTS.filter(s => s.h > 12 || (s.h===12 && s.m===30))
+
 // ── Utilities ─────────────────────────────────────────────────────────
 
 function formatDueDate(s) {
@@ -66,7 +79,7 @@ function dueWithinDays(dueDisplay, days) {
   return due >= today && due <= new Date(today.getTime() + days * 86400000)
 }
 function recalcOverdue(tasks) {
-  return tasks.map(t => ({ ...t, flagged: t.flagged || false, overdue: t.due ? checkOverdue(toDatInput(t.due)) : false }))
+  return tasks.map(t => ({ ...t, flagged: t.flagged||false, overdue: t.due ? checkOverdue(toDatInput(t.due)) : false }))
 }
 
 // ── Styles ────────────────────────────────────────────────────────────
@@ -131,8 +144,7 @@ function StatusDropdown({ status, taskId, onSelect }) {
   return (
     <DropMenu open={open} setOpen={setOpen} trigger={
       <button style={{ display:'inline-flex', alignItems:'center', gap:4, background:cur.bg, color:cur.color, border:'none', borderRadius:20, padding:'2px 8px', fontSize:11, fontWeight:500, cursor:'pointer', whiteSpace:'nowrap' }}>
-        <span style={{ width:6, height:6, borderRadius:'50%', background:cur.dot, flexShrink:0 }} />
-        {cur.label} <span style={{ fontSize:8, opacity:0.5 }}>▾</span>
+        <span style={{ width:6, height:6, borderRadius:'50%', background:cur.dot, flexShrink:0 }} />{cur.label} <span style={{ fontSize:8, opacity:0.5 }}>▾</span>
       </button>
     }>
       {STATUS_OPTS.map(o => <DropOpt key={o.value} label={o.label} dot={o.dot} active={status===o.value} onClick={() => { onSelect(taskId,o.value); setOpen(false) }} />)}
@@ -220,8 +232,7 @@ function SortTh({ label, field, sort, onSort, style={} }) {
   return (
     <th onClick={() => onSort(field)} style={{ ...th, cursor:'pointer', ...style }}>
       <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}>
-        {label}
-        <span style={{ fontSize:9, color:active?'#3b82f6':'#ddd' }}>{active?(sort.dir==='asc'?'↑':'↓'):'↕'}</span>
+        {label}<span style={{ fontSize:9, color:active?'#3b82f6':'#ddd' }}>{active?(sort.dir==='asc'?'↑':'↓'):'↕'}</span>
       </span>
     </th>
   )
@@ -287,31 +298,64 @@ function MasterFilterBar({ filterView, setFilterView, filterBiz, setFilterBiz })
   )
 }
 
-// ── Calendar ──────────────────────────────────────────────────────────
+// ── Calendar (Google Calendar connected) ──────────────────────────────
 
-const MORNING   = ['6:00','6:30 AM','7:00','7:30','8:00','8:30','9:00','9:30','10:00','10:30','11:00','11:30','12:00']
-const AFTERNOON = ['12:30','1:00','1:30','2:00','2:30','3:00','3:30','4:00','4:30','5:00','5:30','6:00','6:30']
-const APPTS = { '6:30 AM':{ label:'Swim', bg:'#1a73e8' }, '8:30':{ label:'Dr. Beavan', bg:'#8e24aa' }, '5:00':{ label:'Lacrosse', bg:'#f4511e' } }
-
-function CalSlot({ time }) {
-  const a = APPTS[time]
+function CalSlot({ slot, events }) {
+  const slotEvents = events.filter(e => {
+    if (!e.start || e.allDay) return false
+    const d = new Date(e.start)
+    return d.getHours() === slot.h &&
+           (slot.m === 0 ? d.getMinutes() < 30 : d.getMinutes() >= 30)
+  })
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:6, borderBottom:'1px solid #f5f5f5', minHeight:22, padding:'1px 0' }}>
-      <span style={{ fontSize:10, color:'#c0c0c0', width:36, flexShrink:0 }}>{time}</span>
-      {a && <span style={{ fontSize:10, fontWeight:500, color:'#fff', background:a.bg, padding:'1px 7px', borderRadius:3 }}>{a.label}</span>}
+    <div style={{ display:'flex', alignItems:'center', gap:4, borderBottom:'1px solid #f5f5f5', minHeight:22, padding:'1px 0' }}>
+      <span style={{ fontSize:10, color:'#c0c0c0', width:36, flexShrink:0 }}>{slot.label}</span>
+      {slotEvents.map(e => (
+        <span key={e.id} style={{ fontSize:10, fontWeight:500, color:'#fff', background:e.color||'#1a73e8', padding:'1px 7px', borderRadius:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:180 }}>
+          {e.title}
+        </span>
+      ))}
     </div>
   )
 }
+
 function Calendar() {
+  const [calData, setCalData] = useState({ connected: false, events: [] })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/calendar/today')
+      .then(r => r.json())
+      .then(data => { setCalData(data); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const events = calData.events || []
+
   return (
     <div style={card}>
-      <div style={cardHead}>Today's schedule</div>
+      <div style={{ ...cardHead, justifyContent:'space-between' }}>
+        <span>Today's schedule</span>
+        {!loading && !calData.connected && (
+          <a href="/api/auth/google" style={{ fontSize:10, color:'#3b82f6', textDecoration:'none', fontWeight:500 }}>
+            Connect Calendar
+          </a>
+        )}
+        {calData.connected && <span style={{ fontSize:9, color:'#22c55e' }}>● Live</span>}
+      </div>
       <div style={{ padding:'10px 12px' }}>
+        {!loading && !calData.connected && (
+          <div style={{ padding:'8px 0', textAlign:'center' }}>
+            <a href="/api/auth/google" style={{ fontSize:11, color:'#3b82f6', textDecoration:'none' }}>
+              Connect Google Calendar to see your schedule
+            </a>
+          </div>
+        )}
         <div style={{ fontSize:9, fontWeight:600, color:'#c0c0c0', letterSpacing:0.5, marginBottom:4 }}>MORNING</div>
-        {MORNING.map(t => <CalSlot key={t} time={t} />)}
+        {MORNING_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} />)}
         <div style={{ height:8 }} />
         <div style={{ fontSize:9, fontWeight:600, color:'#c0c0c0', letterSpacing:0.5, margin:'4px 0' }}>AFTERNOON</div>
-        {AFTERNOON.map(t => <CalSlot key={t} time={t} />)}
+        {AFTERNOON_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} />)}
       </div>
     </div>
   )
@@ -552,11 +596,9 @@ function CrossFitCountdown() {
 function RightPanel({ tasks, goals, setGoals, syncing }) {
   const [mindset, setMindset] = useState('Lead the team with confidence and clarity.')
   const mindsetRef = useRef(null)
-
   useEffect(() => {
     fetch('/api/settings/mindset').then(r=>r.json()).then(d => { if (d.value) setMindset(d.value) }).catch(()=>{})
   }, [])
-
   const saveMindset = (val) => {
     setMindset(val)
     clearTimeout(mindsetRef.current)
@@ -564,7 +606,6 @@ function RightPanel({ tasks, goals, setGoals, syncing }) {
       fetch('/api/settings/mindset', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ value:val }) }).catch(()=>{})
     }, 1500)
   }
-
   const open = tasks.filter(t=>t.status!=='done')
   const stats = [
     { label:'Overdue',     value:open.filter(t=>t.overdue).length,              color:'#dc2626' },
@@ -626,35 +667,30 @@ export default function App() {
   const taskSyncRef = useRef(null)
   const goalSyncRef = useRef(null)
 
-  // Load from backend on mount
   useEffect(() => {
     Promise.all([
-      fetch('/api/tasks').then(r => r.json()),
-      fetch('/api/goals').then(r => r.json()),
+      fetch('/api/tasks').then(r=>r.json()),
+      fetch('/api/goals').then(r=>r.json()),
     ]).then(([tasksData, goalsData]) => {
       setTasks(recalcOverdue(tasksData))
       if (goalsData.length > 0) setGoals(goalsData)
       setLoading(false)
     }).catch(err => {
-      console.error('Load failed:', err)
       setError('Cannot connect to Hank backend. Make sure the server is running.')
       setLoading(false)
     })
   }, [])
 
-  // Sync tasks (debounced)
   useEffect(() => {
     if (loading) return
     clearTimeout(taskSyncRef.current)
     setSyncing(true)
     taskSyncRef.current = setTimeout(() => {
       fetch('/api/tasks/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(tasks) })
-        .then(() => setSyncing(false))
-        .catch(() => setSyncing(false))
+        .then(() => setSyncing(false)).catch(() => setSyncing(false))
     }, SYNC_DELAY)
   }, [tasks])
 
-  // Sync goals (debounced)
   useEffect(() => {
     if (loading) return
     clearTimeout(goalSyncRef.current)
@@ -675,8 +711,7 @@ export default function App() {
   const exportData = () => {
     const blob = new Blob([JSON.stringify({ tasks, goals, exported: new Date().toISOString() }, null, 2)], { type:'application/json' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `hank-backup-${new Date().toISOString().split('T')[0]}.json`; a.click()
+    const a = document.createElement('a'); a.href=url; a.download=`hank-backup-${new Date().toISOString().split('T')[0]}.json`; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -690,14 +725,12 @@ export default function App() {
           await fetch('/api/tasks/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fixed) })
           setTasks(fixed)
         }
-        if (data.goals && data.goals.length > 0) {
+        if (data.goals?.length > 0) {
           await fetch('/api/goals/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data.goals) })
           setGoals(data.goals)
         }
-        alert(`Imported ${data.tasks?.length || 0} tasks successfully.`)
-      } catch (err) {
-        alert('Import failed: ' + err.message)
-      }
+        alert(`Imported ${data.tasks?.length||0} tasks successfully.`)
+      } catch (err) { alert('Import failed: ' + err.message) }
     }
     reader.readAsText(file)
   }
@@ -720,7 +753,6 @@ export default function App() {
     setEditing(null); setEditVal('')
   }
   const toggleSort = f => setSort(p=>p.field===f?{field:f,dir:p.dir==='asc'?'desc':'asc'}:{field:f,dir:'asc'})
-
   const applySort = list => {
     if (!sort.field) return list
     return [...list].sort((a,b) => {
