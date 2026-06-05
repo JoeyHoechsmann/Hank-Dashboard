@@ -47,7 +47,7 @@ function makeSlots(startH, endH) {
   }
   return slots
 }
-const ALL_SLOTS = makeSlots(5, 22)
+const ALL_SLOTS = makeSlots(6, 21)
 
 // ── Utilities ─────────────────────────────────────────────────────────
 
@@ -342,7 +342,7 @@ function Calendar() {
           : <span style={{ fontSize:9, color:'#22c55e' }}>● Live</span>
         }
       </div>
-      <div style={{ padding:'10px 12px', maxHeight:'65vh', overflowY:'auto' }}>
+      <div style={{ padding:'8px 12px' }}>
         {!calData.connected && (
           <div style={{ padding:'6px 0 10px', textAlign:'center' }}>
             <a href="/api/auth/google" style={{ fontSize:11, color:'#3b82f6', textDecoration:'none' }}>
@@ -350,7 +350,6 @@ function Calendar() {
             </a>
           </div>
         )}
-        <div style={{ fontSize:9, fontWeight:600, color:'#c0c0c0', letterSpacing:0.5, marginBottom:4 }}>MORNING</div>
         {ALL_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} />)}
       </div>
     </div>
@@ -830,7 +829,7 @@ export default function App() {
         {view==='master' && <MasterFilterBar filterView={filterView} setFilterView={setFilterView} filterBiz={filterBiz} setFilterBiz={setFilterBiz} />}
 
         {view==='daily' && (
-          <div style={{ display:'grid', gridTemplateColumns:'280px 1fr 280px', gap:14, alignItems:'start' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'310px 1fr 280px', gap:14, alignItems:'start' }}>
             <div style={{ position:'sticky', top:16 }}><Calendar /></div>
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <DoFirst flagged={flagged} onUnflag={toggleFlag} onSetStatus={setTaskStatus} onArchive={archiveTask} />

@@ -18,6 +18,11 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 )
 
+// Calendars to hide — set HIDDEN_CALENDARS in Railway env vars
+// Example: HIDDEN_CALENDARS=DC Deliveries,DC Pickups,Holidays in Canada
+const hiddenCals = (process.env.HIDDEN_CALENDARS || '')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+
 // ── Health ────────────────────────────────────────────────────────────
 
 app.get('/api/health', (req, res) => {
@@ -58,7 +63,42 @@ app.get('/api/auth/google/callback', async (req, res) => {
   }
 })
 
-// ── Calendar events (all calendars, real colors) ──────────────────────
+// ── Calendar: list all calendars (visit this URL to see calendar names) ──
+
+app.get('/api/calendar/list', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT key, value FROM settings WHERE key IN ($1,$2)',
+      ['google_refresh_token', 'google_access_token']
+    )
+    const tokenMap = {}
+    rows.forEach(r => { tokenMap[r.key] = r.value })
+    if (!tokenMap.google_refresh_token && !tokenMap.google_access_token) {
+      return res.json({ error: 'Not authenticated. Visit /api/auth/google first.' })
+    }
+    oauth2Client.setCredentials({
+      refresh_token: tokenMap.google_refresh_token,
+      access_token:  tokenMap.google_access_token,
+    })
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
+    const { data }  = await calendar.calendarList.list()
+    const list = (data.items || []).map(c => ({
+      name:     c.summary,
+      id:       c.id,
+      color:    c.backgroundColor,
+      selected: c.selected !== false,
+      hidden:   hiddenCals.some(h => (c.summary || '').toLowerCase().includes(h))
+    }))
+    res.json({
+      note: 'To hide calendars, set HIDDEN_CALENDARS env var in Railway (comma-separated names)',
+      calendars: list
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── Calendar events ───────────────────────────────────────────────────
 
 function colorFromId(id) {
   const colors = {
@@ -88,8 +128,6 @@ app.get('/api/calendar/today', async (req, res) => {
     })
 
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
-
-    // Get all calendars and their colors
     const calListRes = await calendar.calendarList.list()
     const calendars  = calListRes.data.items || []
     const calColors  = {}
@@ -99,10 +137,13 @@ app.get('/api/calendar/today', async (req, res) => {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
     const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
 
-    // Fetch events from every selected calendar
     const allEvents = []
     for (const cal of calendars) {
       if (cal.selected === false) continue
+      // Skip hidden calendars
+      const calName = (cal.summary || '').toLowerCase()
+      if (hiddenCals.some(h => calName.includes(h))) continue
+
       try {
         const evRes = await calendar.events.list({
           calendarId: cal.id,
@@ -113,17 +154,18 @@ app.get('/api/calendar/today', async (req, res) => {
           maxResults: 50
         })
         ;(evRes.data.items || []).forEach(e => {
+          if (!e.start) return
           allEvents.push({
             id:     `${cal.id}_${e.id}`,
             title:  e.summary || 'Untitled',
             start:  e.start.dateTime || e.start.date,
-            end:    e.end.dateTime   || e.end.date,
+            end:    e.end?.dateTime  || e.end?.date || e.start.dateTime || e.start.date,
             allDay: !e.start.dateTime,
             color:  e.colorId ? colorFromId(e.colorId) : (calColors[cal.id] || '#1a73e8')
           })
         })
       } catch (calErr) {
-        console.error(`Skipping calendar ${cal.id}:`, calErr.message)
+        console.error(`Skipping calendar "${cal.summary}":`, calErr.message)
       }
     }
 
