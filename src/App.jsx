@@ -302,54 +302,88 @@ function MasterFilterBar({ filterView, setFilterView, filterBiz, setFilterBiz })
 
 // ── Calendar (Google Calendar connected) ──────────────────────────────
 
-function CalSlot({ slot, events }) {
+function CalSlot({ slot, events, currentMins }) {
+  const SLOT_H        = 19
   const slotStartMins = slot.h * 60 + slot.m
   const slotEndMins   = slotStartMins + 30
+  const isPast        = currentMins > slotEndMins
+  const isCurrent     = currentMins >= slotStartMins && currentMins < slotEndMins
+  const lineTop       = isCurrent
+    ? Math.round(((currentMins - slotStartMins) / 30) * SLOT_H)
+    : null
 
   const slotEvents = events.filter(e => {
-    if (!e.start) return false
-    if (e.allDay) return false
-    const sMins   = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
-    const endDate = new Date(e.end || e.start)
+    if (!e.start || e.allDay) return false
+    const sMins    = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
+    const endDate  = new Date(e.end || e.start)
     const eMinsRaw = endDate.getHours() * 60 + endDate.getMinutes()
-    // If end==start (missing end time), treat as 30-min event
-    const eMins = eMinsRaw === sMins ? sMins + 30 : eMinsRaw
+    const eMins    = eMinsRaw === sMins ? sMins + 30 : eMinsRaw
     return sMins < slotEndMins && eMins > slotStartMins
   })
 
   return (
     <div style={{
-      display:'flex', alignItems:'center', gap:4,
-      borderBottom: slot.isNoon ? '1px solid #d1d5db' : '1px solid #f5f5f5',
-      minHeight: 19, padding:'1px 0', overflow:'hidden',
+      position: 'relative', display:'flex', alignItems:'stretch',
+      borderBottom: slot.isNoon ? '1px solid #d1d5db' : '1px solid #f0f0f0',
+      minHeight: SLOT_H,
     }}>
+      {/* Current time indicator */}
+      {lineTop !== null && (
+        <div style={{
+          position:'absolute', left:0, right:0, top:lineTop,
+          height:2, background:'#ef4444', zIndex:10, pointerEvents:'none',
+          boxShadow:'0 0 3px rgba(239,68,68,0.5)',
+        }}>
+          <div style={{
+            position:'absolute', left:30, top:-4,
+            width:10, height:10, borderRadius:'50%', background:'#ef4444',
+          }} />
+        </div>
+      )}
+      {/* Time label */}
       <span style={{
-        fontSize:10, width:36, flexShrink:0,
-        color:      slot.isNoon ? '#374151' : '#c0c0c0',
+        fontSize:9, width:36, flexShrink:0, paddingRight:4,
+        display:'flex', alignItems:'center', justifyContent:'flex-end',
+        color:      slot.isNoon ? '#374151' : isPast ? '#e5e7eb' : '#c0c0c0',
         fontWeight: slot.isNoon ? 600 : 400,
       }}>{slot.label}</span>
-      {slotEvents.map(e => {
-        const sMins   = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
-        const isFirst = sMins >= slotStartMins && sMins < slotEndMins
-        return (
-          <span key={e.id} style={{
-            display:'inline-block', fontSize:10, color:'#fff',
-            background: e.color || '#1a73e8',
-            opacity: isFirst ? 1 : 0.55,
-            padding:'1px 7px', borderRadius:3,
-            maxWidth:185, overflow:'hidden',
-            textOverflow:'ellipsis', whiteSpace:'nowrap', flexShrink:0,
-          }}>
-            {isFirst ? e.title : `↳ ${e.title}`}
-          </span>
-        )
-      })}
+      {/* Events — full width, grayed if past */}
+      {slotEvents.length > 0 && (
+        <div style={{
+          flex:1, display:'flex', gap:2, alignItems:'stretch',
+          overflow:'hidden', padding:'1px 0',
+          opacity: isPast ? 0.42 : 1,
+        }}>
+          {slotEvents.map(e => {
+            const sMins   = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
+            const isFirst = sMins >= slotStartMins && sMins < slotEndMins
+            return (
+              <div key={e.id} style={{
+                flex:1, background: e.color||'#1a73e8',
+                borderRadius:3, overflow:'hidden',
+                display:'flex', alignItems:'center',
+                padding:'0 6px', minWidth:0,
+              }}>
+                {isFirst && (
+                  <span style={{
+                    fontSize:10, fontWeight:500, color:'#fff',
+                    whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                  }}>{e.title}</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
 function Calendar() {
-  const [calData, setCalData] = useState({ connected: false, events: [] })
+  const [calData,     setCalData]     = useState({ connected: false, events: [] })
+  const [currentMins, setCurrentMins] = useState(() => {
+    const n = new Date(); return n.getHours() * 60 + n.getMinutes()
+  })
 
   useEffect(() => {
     const now   = new Date()
@@ -359,6 +393,14 @@ function Calendar() {
       .then(r => r.json())
       .then(setCalData)
       .catch(() => {})
+  }, [])
+
+  // Update current time every minute so the red line moves
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const n = new Date(); setCurrentMins(n.getHours() * 60 + n.getMinutes())
+    }, 60000)
+    return () => clearInterval(tick)
   }, [])
 
   const events = calData.events || []
@@ -380,7 +422,9 @@ function Calendar() {
             </a>
           </div>
         )}
-        {ALL_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} />)}
+        {ALL_SLOTS.map(s => (
+          <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} currentMins={currentMins} />
+        ))}
       </div>
     </div>
   )
