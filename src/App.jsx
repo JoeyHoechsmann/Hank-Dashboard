@@ -723,40 +723,45 @@ function MindsetCard() {
   const cancelEdit  = () => setEditing(false)
 
   return (
-    <div style={{ background:'#1e293b', borderRadius:12, border:'1px solid #334155', overflow:'hidden' }}>
-      <div style={{ padding:'14px 16px' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-          <span style={{ fontSize:9, fontWeight:600, color:'#64748b', letterSpacing:1.5, textTransform:'uppercase' }}>
+    <div style={{
+      background:'#fff', borderRadius:12,
+      border:'1px solid #e5e7eb',
+      borderLeft:'4px solid #f59e0b',
+      overflow:'hidden',
+    }}>
+      <div style={{ padding:'18px 18px 20px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <span style={{ fontSize:9, fontWeight:600, color:'#9ca3af', letterSpacing:1.5, textTransform:'uppercase' }}>
             Today's intention
           </span>
           {!editing && (
-            <button onClick={startEdit} title="Edit mindset"
-              style={{ background:'none', border:'none', cursor:'pointer', color:'#475569', fontSize:14, padding:0, lineHeight:1 }}
-              onMouseEnter={e=>e.currentTarget.style.color='#94a3b8'}
-              onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✎</button>
+            <button onClick={startEdit} title="Edit"
+              style={{ background:'none', border:'none', cursor:'pointer', color:'#d1d5db', fontSize:14, padding:0, lineHeight:1 }}
+              onMouseEnter={e=>e.currentTarget.style.color='#f59e0b'}
+              onMouseLeave={e=>e.currentTarget.style.color='#d1d5db'}>✎</button>
           )}
         </div>
         {editing ? (
           <div>
             <textarea autoFocus value={draft} onChange={e=>setDraft(e.target.value)} rows={3}
-              style={{ width:'100%', background:'#0f172a', border:'1px solid #334155', borderRadius:6,
-                padding:'8px 10px', fontSize:13, fontFamily:'inherit', color:'#e2e8f0',
-                resize:'none', lineHeight:1.5, boxSizing:'border-box' }} />
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:6, marginTop:8 }}>
+              style={{ width:'100%', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:6,
+                padding:'10px 12px', fontSize:13, fontFamily:'inherit', color:'#78350f',
+                resize:'none', lineHeight:1.6, boxSizing:'border-box' }} />
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:6, marginTop:10 }}>
               <button onClick={cancelEdit}
-                style={{ background:'transparent', border:'1px solid #334155', borderRadius:6,
-                  padding:'4px 12px', fontSize:11, color:'#94a3b8', cursor:'pointer', fontFamily:'inherit' }}>
+                style={{ background:'transparent', border:'1px solid #e5e7eb', borderRadius:6,
+                  padding:'5px 14px', fontSize:11, color:'#6b7280', cursor:'pointer', fontFamily:'inherit' }}>
                 Cancel
               </button>
               <button onClick={confirmEdit}
-                style={{ background:'#3b82f6', border:'none', borderRadius:6,
-                  padding:'4px 12px', fontSize:11, color:'#fff', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>
+                style={{ background:'#f59e0b', border:'none', borderRadius:6,
+                  padding:'5px 14px', fontSize:11, color:'#fff', cursor:'pointer', fontFamily:'inherit', fontWeight:600 }}>
                 Save
               </button>
             </div>
           </div>
         ) : (
-          <div style={{ fontSize:15, color:'#f1f5f9', fontStyle:'italic', lineHeight:1.55, letterSpacing:0.2 }}>
+          <div style={{ fontSize:16, color:'#92400e', fontStyle:'italic', lineHeight:1.65, letterSpacing:0.3 }}>
             "{mindset}"
           </div>
         )}
@@ -776,8 +781,8 @@ function RightPanel({ tasks, goals, setGoals, syncing }) {
   ]
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <CrossFitCountdown />
       <MindsetCard />
+      <CrossFitCountdown />
       <div style={card}>
         <div style={cardHead}>Focus goals and projects</div>
         <EditableGoals goals={goals} setGoals={setGoals} />
