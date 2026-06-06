@@ -113,7 +113,17 @@ function FlagBtn({ flagged, onClick }) {
 // ── Dropdown base ─────────────────────────────────────────────────────
 
 function DropMenu({ trigger, children, open, setOpen }) {
-  const ref = useRef(null)
+  const ref    = useRef(null)
+  const trigRef = useRef(null)
+  const [pos, setPos] = useState({ top:0, left:0 })
+
+  const handleClick = () => {
+    if (!open && trigRef.current) {
+      const r = trigRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left })
+    }
+    setOpen(p => !p)
+  }
   useEffect(() => {
     if (!open) return
     const fn = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
@@ -122,9 +132,13 @@ function DropMenu({ trigger, children, open, setOpen }) {
   }, [open, setOpen])
   return (
     <div ref={ref} style={{ position:'relative', display:'inline-block' }}>
-      <div onClick={() => setOpen(p=>!p)}>{trigger}</div>
+      <div ref={trigRef} onClick={handleClick}>{trigger}</div>
       {open && (
-        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:400, background:'#fff', border:'1px solid #e5e7eb', borderRadius:8, boxShadow:'0 8px 24px rgba(0,0,0,0.15)', minWidth:150, overflow:'hidden' }}>
+        <div style={{
+          position:'fixed', top:pos.top, left:pos.left,
+          zIndex:9999, background:'#fff', border:'1px solid #e5e7eb', borderRadius:8,
+          boxShadow:'0 8px 24px rgba(0,0,0,0.15)', minWidth:150, overflow:'hidden'
+        }}>
           {children}
         </div>
       )}
@@ -513,7 +527,7 @@ function DoFirst({ flagged, onUnflag, onSetStatus, onArchive }) {
               style={{ cursor:'pointer', width:14, height:14, accentColor:'#22c55e', flexShrink:0 }} />
             <StatusDropdown status={t.status} taskId={t.id} onSelect={onSetStatus} />
             <span style={{ flex:1, fontSize:12, fontWeight:500, color:'#111', marginLeft:4 }}>{t.name}</span>
-            <span style={{ fontSize:11, color:t.overdue?'#dc2626':'#888', whiteSpace:'nowrap' }}>{t.overdue?'! ':''}{t.due}</span>
+            <span style={{ fontSize:11, color:t.overdue?'#dc2626':'#888', whiteSpace:'nowrap' }}>{t.due}</span>
             <button onClick={() => onUnflag(t.id)} title="Unflag — stays in your list"
               style={{ background:'none', border:'1px solid #fecaca', borderRadius:3, width:16, height:16, fontSize:9, cursor:'pointer', color:'#dc2626', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>×</button>
           </div>
@@ -687,19 +701,72 @@ function CrossFitCountdown() {
   )
 }
 
-function RightPanel({ tasks, goals, setGoals, syncing }) {
+function MindsetCard() {
   const [mindset, setMindset] = useState('Lead the team with confidence and clarity.')
-  const mindsetRef = useRef(null)
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState('')
+  const timerRef = useRef(null)
+
   useEffect(() => {
-    fetch('/api/settings/mindset').then(r=>r.json()).then(d => { if (d.value) setMindset(d.value) }).catch(()=>{})
+    fetch('/api/settings/mindset').then(r=>r.json())
+      .then(d => { if (d.value) setMindset(d.value) }).catch(()=>{})
   }, [])
-  const saveMindset = (val) => {
-    setMindset(val)
-    clearTimeout(mindsetRef.current)
-    mindsetRef.current = setTimeout(() => {
+
+  const persist = val => {
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
       fetch('/api/settings/mindset', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ value:val }) }).catch(()=>{})
-    }, 1500)
+    }, 1000)
   }
+  const startEdit   = () => { setDraft(mindset); setEditing(true) }
+  const confirmEdit = () => { persist(draft); setMindset(draft); setEditing(false) }
+  const cancelEdit  = () => setEditing(false)
+
+  return (
+    <div style={{ background:'#1e293b', borderRadius:12, border:'1px solid #334155', overflow:'hidden' }}>
+      <div style={{ padding:'14px 16px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+          <span style={{ fontSize:9, fontWeight:600, color:'#64748b', letterSpacing:1.5, textTransform:'uppercase' }}>
+            Today's intention
+          </span>
+          {!editing && (
+            <button onClick={startEdit} title="Edit mindset"
+              style={{ background:'none', border:'none', cursor:'pointer', color:'#475569', fontSize:14, padding:0, lineHeight:1 }}
+              onMouseEnter={e=>e.currentTarget.style.color='#94a3b8'}
+              onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✎</button>
+          )}
+        </div>
+        {editing ? (
+          <div>
+            <textarea autoFocus value={draft} onChange={e=>setDraft(e.target.value)} rows={3}
+              style={{ width:'100%', background:'#0f172a', border:'1px solid #334155', borderRadius:6,
+                padding:'8px 10px', fontSize:13, fontFamily:'inherit', color:'#e2e8f0',
+                resize:'none', lineHeight:1.5, boxSizing:'border-box' }} />
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:6, marginTop:8 }}>
+              <button onClick={cancelEdit}
+                style={{ background:'transparent', border:'1px solid #334155', borderRadius:6,
+                  padding:'4px 12px', fontSize:11, color:'#94a3b8', cursor:'pointer', fontFamily:'inherit' }}>
+                Cancel
+              </button>
+              <button onClick={confirmEdit}
+                style={{ background:'#3b82f6', border:'none', borderRadius:6,
+                  padding:'4px 12px', fontSize:11, color:'#fff', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize:15, color:'#f1f5f9', fontStyle:'italic', lineHeight:1.55, letterSpacing:0.2 }}>
+            "{mindset}"
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RightPanel({ tasks, goals, setGoals, syncing }) {
+
   const open = tasks.filter(t=>t.status!=='done')
   const stats = [
     { label:'Overdue',     value:open.filter(t=>t.overdue).length,              color:'#dc2626' },
@@ -710,14 +777,7 @@ function RightPanel({ tasks, goals, setGoals, syncing }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       <CrossFitCountdown />
-      <div style={{ background:'#f0f9ff', borderRadius:12, overflow:'hidden', border:'1px solid #bae6fd' }}>
-        <div style={{ ...cardHead, background:'#e0f2fe', borderBottom:'1px solid #bae6fd', color:'#0369a1' }}>Mental mindset</div>
-        <div style={{ padding:12 }}>
-          <div style={{ fontSize:10, color:'#7dd3fc', marginBottom:6 }}>Hank texts you each morning. Your reply shows here.</div>
-          <textarea value={mindset} onChange={e=>saveMindset(e.target.value)} rows={3}
-            style={{ width:'100%', border:'1px solid #bae6fd', borderRadius:6, padding:'8px 10px', fontSize:12, fontFamily:'inherit', color:'#0c4a6e', background:'#e0f2fe', resize:'none', lineHeight:1.5, boxSizing:'border-box' }} />
-        </div>
-      </div>
+      <MindsetCard />
       <div style={card}>
         <div style={cardHead}>Focus goals and projects</div>
         <EditableGoals goals={goals} setGoals={setGoals} />
@@ -750,7 +810,7 @@ export default function App() {
   const [editVal,      setEditVal]      = useState('')
   const [filterView,   setFilterView]   = useState('all')
   const [filterBiz,    setFilterBiz]    = useState('All')
-  const [sort,         setSort]         = useState({ field:null, dir:'asc' })
+  const [sort,         setSort]         = useState({ field:'due', dir:'asc' })
   const [dailySearch,  setDailySearch]  = useState('')
   const [masterSearch, setMasterSearch] = useState('')
   const [tasks,        setTasks]        = useState([])
