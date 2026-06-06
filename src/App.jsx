@@ -469,6 +469,94 @@ function Calendar() {
 }
 
 
+// ── Task Detail Modal (mobile) ────────────────────────────────────────
+
+function TaskDetailModal({ task, onSave, onClose }) {
+  const [name,     setName]     = useState(task.name)
+  const [status,   setStatus]   = useState(task.status)
+  const [biz,      setBiz]      = useState(task.biz)
+  const [horizon,  setHorizon]  = useState(task.horizon)
+  const [due,      setDue]      = useState(toDatInput(task.due))
+  const [delegate, setDelegate] = useState(task.delegate || '')
+
+  const save = () => {
+    onSave({
+      ...task,
+      name: name.trim() || task.name,
+      status,
+      biz,
+      horizon,
+      due:     due ? formatDueDate(due) : '',
+      overdue: due ? checkOverdue(due) : false,
+      delegate,
+    })
+    onClose()
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.65)', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:1000 }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={{ background:'#fff', borderRadius:'18px 18px 0 0', width:'100%', maxWidth:600, padding:'20px 20px 44px', boxShadow:'0 -8px 32px rgba(0,0,0,0.25)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+          <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>Task details</div>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#aaa', fontSize:24, lineHeight:1, padding:'0 4px' }}>×</button>
+        </div>
+
+        <div style={{ marginBottom:14 }}>
+          <label style={labelSt}>Task name</label>
+          <input value={name} onChange={e=>setName(e.target.value)} style={inputSt} />
+        </div>
+
+        <div style={{ marginBottom:14 }}>
+          <label style={labelSt}>Status</label>
+          <div style={{ display:'flex', gap:6 }}>
+            {STATUS_OPTS.map(o => (
+              <button key={o.value} onClick={() => setStatus(o.value)} style={{
+                flex:1, background:status===o.value ? o.bg : '#f8fafc',
+                color:status===o.value ? o.color : '#94a3b8',
+                border:`1px solid ${status===o.value ? o.dot : '#e5e7eb'}`,
+                borderRadius:8, padding:'9px 4px', fontSize:11, fontWeight:status===o.value?600:400,
+                cursor:'pointer', fontFamily:'inherit',
+              }}>{o.label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+          <div>
+            <label style={labelSt}>Business</label>
+            <select value={biz} onChange={e=>setBiz(e.target.value)} style={inputSt}>
+              {Object.keys(BIZ).map(b=><option key={b}>{b}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelSt}>Horizon</label>
+            <select value={horizon} onChange={e=>setHorizon(e.target.value)} style={inputSt}>
+              {HORIZON_OPTS.map(h=><option key={h}>{h}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:22 }}>
+          <div>
+            <label style={labelSt}>Due date</label>
+            <input type="date" value={due} onChange={e=>setDue(e.target.value)} style={inputSt} />
+          </div>
+          <div>
+            <label style={labelSt}>Delegate to</label>
+            <input value={delegate} onChange={e=>setDelegate(e.target.value)} placeholder="Optional" style={inputSt} />
+          </div>
+        </div>
+
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={onClose} style={{ flex:1, background:'#f1f5f9', border:'none', borderRadius:8, padding:'13px', fontSize:13, cursor:'pointer', fontFamily:'inherit', color:'#475569' }}>Cancel</button>
+          <button onClick={save}    style={{ flex:2, background:'#1e40af', border:'none', borderRadius:8, padding:'13px', fontSize:13, cursor:'pointer', fontFamily:'inherit', color:'#fff', fontWeight:500 }}>Save changes</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Add Task Modal ────────────────────────────────────────────────────
 
 function AddTaskModal({ newTask, setNewTask, onAdd, onClose }) {
@@ -539,7 +627,7 @@ function DoFirst({ flagged, onUnflag, onSetStatus, onArchive }) {
 
 // ── Task table ────────────────────────────────────────────────────────
 
-function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetBiz, onSetDate, onArchive, editing, editVal, setEditVal, onStartEdit, onSaveEdit, onCancelEdit, sort, onSort, showDelegate=false, isMobile=false }) {
+function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetBiz, onSetDate, onArchive, editing, editVal, setEditVal, onStartEdit, onSaveEdit, onCancelEdit, sort, onSort, showDelegate=false, isMobile=false, onOpenDetail=null }) {
   const ep = { editing, editVal, setEditVal, onStart:onStartEdit, onSave:onSaveEdit, onCancel:onCancelEdit }
   const isMaster = mode === 'master'
   return (
@@ -548,7 +636,7 @@ function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetB
         <thead>
           <tr>
             <th style={{ ...th, width:32 }}></th>
-            <SortTh label="Status" field="status" sort={sort} onSort={onSort} style={{ width:115 }} />
+            {!isMobile && <SortTh label="Status" field="status" sort={sort} onSort={onSort} style={{ width:115 }} />}
             <SortTh label="Task" field="name" sort={sort} onSort={onSort} />
             {!isMobile && <SortTh label="Business" field="biz" sort={sort} onSort={onSort} style={{ width:90 }} />}
             {!isMobile && <SortTh label="Horizon" field="horizon" sort={sort} onSort={onSort} style={{ width:120 }} />}
@@ -571,11 +659,21 @@ function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetB
                       style={{ cursor:'pointer', width:13, height:13, accentColor:'#22c55e' }} />
                 }
               </td>
-              <td style={{ padding:'6px 8px' }}><StatusDropdown status={t.status} taskId={t.id} onSelect={onSetStatus} /></td>
+              {!isMobile && <td style={{ padding:'6px 8px' }}><StatusDropdown status={t.status} taskId={t.id} onSelect={onSetStatus} /></td>}
               <td style={{ padding:'6px 10px', fontSize:12, fontWeight:500 }}>
                 {t.overdue && <OverdueBadge />}
-                <EditCell value={t.name} taskId={t.id} field="name" {...ep} inputStyle={{ width:240 }} spanStyle={{ color:t.overdue?'#b91c1c':'#111' }} />
-                {t.flagged && <span style={{ fontSize:9, background:'#fef3c7', color:'#92400e', padding:'1px 5px', borderRadius:3, marginLeft:6 }}>do first</span>}
+                {isMobile ? (
+                  <span onClick={() => onOpenDetail && onOpenDetail(t)}
+                    style={{ cursor:'pointer', color:t.overdue?'#b91c1c':'#111', textDecoration:'none' }}>
+                    {t.name}
+                    {t.flagged && <span style={{ fontSize:9, background:'#fef3c7', color:'#92400e', padding:'1px 5px', borderRadius:3, marginLeft:6 }}>do first</span>}
+                  </span>
+                ) : (
+                  <>
+                    <EditCell value={t.name} taskId={t.id} field="name" {...ep} inputStyle={{ width:240 }} spanStyle={{ color:t.overdue?'#b91c1c':'#111' }} />
+                    {t.flagged && <span style={{ fontSize:9, background:'#fef3c7', color:'#92400e', padding:'1px 5px', borderRadius:3, marginLeft:6 }}>do first</span>}
+                  </>
+                )}
               </td>
               {!isMobile && <td style={{ padding:'6px 8px' }}><BizDropdown biz={t.biz} taskId={t.id} onSelect={onSetBiz} /></td>}
               {!isMobile && <td style={{ padding:'6px 8px' }}><HorizonDropdown horizon={t.horizon} taskId={t.id} onSelect={onSetHorizon} /></td>}
@@ -833,6 +931,7 @@ export default function App() {
   const [loading,      setLoading]      = useState(true)
   const [syncing,      setSyncing]      = useState(false)
   const [error,        setError]        = useState(null)
+  const [detailTask,   setDetailTask]   = useState(null)
   const isMobile = useIsMobile()
   const taskSyncRef = useRef(null)
   const goalSyncRef = useRef(null)
@@ -869,6 +968,7 @@ export default function App() {
     }, SYNC_DELAY)
   }, [goals])
 
+  const updateTask    = updated => setTasks(p=>p.map(t=>t.id===updated.id?updated:t))
   const toggleFlag    = id => setTasks(p=>p.map(t=>t.id===id?{...t,flagged:!t.flagged}:t))
   const deleteTask    = id => setTasks(p=>p.filter(t=>t.id!==id))
   const setTaskStatus = (id,s) => setTasks(p=>p.map(t=>t.id!==id?t:{...t,status:s}))
@@ -986,7 +1086,8 @@ export default function App() {
 
   return (
     <div style={{ background:'#0f0f0f', minHeight:'100vh', padding: isMobile ? 0 : 16, boxSizing:'border-box' }}>
-      {showAdd && <AddTaskModal newTask={newTask} setNewTask={setNewTask} onAdd={addTask} onClose={()=>setShowAdd(false)} />}
+      {showAdd    && <AddTaskModal newTask={newTask} setNewTask={setNewTask} onAdd={addTask} onClose={()=>setShowAdd(false)} />}
+    {detailTask && <TaskDetailModal task={detailTask} onSave={updateTask} onClose={()=>setDetailTask(null)} />}
       <div style={{ maxWidth:1600, margin:'0 auto' }}>
         {isMobile ? (
           <div style={{ position:'sticky', top:0, zIndex:100, background:'#0f0f0f', padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.1)' }}>
@@ -1023,7 +1124,7 @@ export default function App() {
                 <span style={{ background:'#f1f5f9', color:'#94a3b8', fontSize:10, padding:'0 6px', borderRadius:20 }}>{dailyTasks.length}</span>
                 <div style={{ marginLeft:'auto' }}><SearchInput value={dailySearch} onChange={setDailySearch} /></div>
               </div>
-              <TaskTable tasks={dailyTasks} mode="daily" onCheckLeft={archiveTask} {...sharedProps} showDelegate={false} isMobile={true} />
+              <TaskTable tasks={dailyTasks} mode="daily" onCheckLeft={archiveTask} {...sharedProps} showDelegate={false} isMobile={true} onOpenDetail={setDetailTask} />
             </div>
           </div>
         ) : (
@@ -1055,7 +1156,7 @@ export default function App() {
               </div>
               <SearchInput value={masterSearch} onChange={setMasterSearch} />
             </div>
-            <TaskTable tasks={masterBase} mode="master" onCheckLeft={toggleFlag} {...sharedProps} showDelegate={true} isMobile={isMobile} />
+            <TaskTable tasks={masterBase} mode="master" onCheckLeft={toggleFlag} {...sharedProps} showDelegate={true} isMobile={isMobile} onOpenDetail={isMobile ? setDetailTask : null} />
           </div>
         )}
 
