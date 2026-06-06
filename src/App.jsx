@@ -302,96 +302,29 @@ function MasterFilterBar({ filterView, setFilterView, filterBiz, setFilterBiz })
 
 // ── Calendar (Google Calendar connected) ──────────────────────────────
 
-function CalSlot({ slot, events, currentMins }) {
-  const SLOT_H        = 19
-  const slotStartMins = slot.h * 60 + slot.m
-  const slotEndMins   = slotStartMins + 30
-  const isPast        = currentMins > slotEndMins
-  const isCurrent     = currentMins >= slotStartMins && currentMins < slotEndMins
-  const lineTop       = isCurrent
-    ? Math.round(((currentMins - slotStartMins) / 30) * SLOT_H)
-    : null
-
-  const getEventMins = e => {
-    const sMins    = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
-    const endDate  = new Date(e.end || e.start)
-    const eMinsRaw = endDate.getHours() * 60 + endDate.getMinutes()
-    const eMins    = eMinsRaw === sMins ? sMins + 30 : eMinsRaw
-    return { sMins, eMins }
-  }
-
-  const slotEvents = events.filter(e => {
-    if (!e.start || e.allDay) return false
-    const { sMins, eMins } = getEventMins(e)
-    return sMins < slotEndMins && eMins > slotStartMins
-  })
-
-  // Transparent border when any event continues into the next slot
-  // This makes multi-slot events appear as one seamless block
-  const hasContinuation = slotEvents.some(e => getEventMins(e).eMins > slotEndMins)
-  const borderColor = hasContinuation ? 'transparent'
-    : slot.isNoon ? '#d1d5db' : '#f0f0f0'
-
+// CalSlot now only renders the time grid — events are overlaid absolutely in Calendar
+function CalSlot({ slot }) {
   return (
     <div style={{
-      position:'relative', display:'flex', alignItems:'stretch',
-      borderBottom: `1px solid ${borderColor}`,
-      minHeight: SLOT_H,
+      display:'flex', alignItems:'center',
+      borderBottom: slot.isNoon ? '1px solid #d1d5db' : '1px solid #f0f0f0',
+      minHeight: 19,
     }}>
-      {lineTop !== null && (
-        <div style={{
-          position:'absolute', left:0, right:0, top:lineTop,
-          height:2, background:'#ef4444', zIndex:10, pointerEvents:'none',
-          boxShadow:'0 0 3px rgba(239,68,68,0.5)',
-        }}>
-          <div style={{
-            position:'absolute', left:30, top:-4,
-            width:10, height:10, borderRadius:'50%', background:'#ef4444',
-          }} />
-        </div>
-      )}
       <span style={{
         fontSize:9, width:36, flexShrink:0, paddingRight:4,
         display:'flex', alignItems:'center', justifyContent:'flex-end',
-        color:      slot.isNoon ? '#374151' : isPast ? '#e5e7eb' : '#c0c0c0',
+        color:      slot.isNoon ? '#374151' : '#c0c0c0',
         fontWeight: slot.isNoon ? 600 : 400,
       }}>{slot.label}</span>
-      {slotEvents.length > 0 && (
-        <div style={{
-          flex:1, display:'flex', gap:2, alignItems:'stretch',
-          overflow:'hidden', padding:0, opacity: isPast ? 0.42 : 1,
-        }}>
-          {slotEvents.map(e => {
-            const { sMins, eMins } = getEventMins(e)
-            const isFirst = sMins >= slotStartMins && sMins < slotEndMins
-            const isLast  = eMins <= slotEndMins
-            const radius  = isFirst && isLast ? 3
-              : isFirst ? '3px 3px 0 0'
-              : isLast  ? '0 0 3px 3px'
-              : 0
-            return (
-              <div key={e.id} style={{
-                flex:1, background: e.color||'#1a73e8',
-                borderRadius: radius, overflow:'hidden',
-                display:'flex', alignItems:'center',
-                padding: isFirst ? '0 6px' : 0, minWidth:0,
-              }}>
-                {isFirst && (
-                  <span style={{
-                    fontSize:10, fontWeight:500, color:'#fff',
-                    whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-                  }}>{e.title}</span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }
 
 function Calendar() {
+  const SLOT_H     = 19
+  const START_MINS = 6 * 60   // 6:00 AM in minutes
+  const TOTAL_MINS = ALL_SLOTS.length * 30
+
   const [calData,     setCalData]     = useState({ connected: false, events: [] })
   const [currentMins, setCurrentMins] = useState(() => {
     const n = new Date(); return n.getHours() * 60 + n.getMinutes()
@@ -407,7 +340,6 @@ function Calendar() {
       .catch(() => {})
   }, [])
 
-  // Update current time every minute so the red line moves
   useEffect(() => {
     const tick = setInterval(() => {
       const n = new Date(); setCurrentMins(n.getHours() * 60 + n.getMinutes())
@@ -415,7 +347,9 @@ function Calendar() {
     return () => clearInterval(tick)
   }, [])
 
-  const events = calData.events || []
+  const events   = calData.events || []
+  const lineTop  = ((currentMins - START_MINS) / 30) * SLOT_H
+  const showLine = lineTop >= 0 && lineTop <= TOTAL_MINS / 30 * SLOT_H
 
   return (
     <div style={card}>
@@ -429,18 +363,70 @@ function Calendar() {
       <div style={{ padding:'8px 12px' }}>
         {!calData.connected && (
           <div style={{ padding:'6px 0 10px', textAlign:'center' }}>
-            <a href="/api/auth/google" style={{ fontSize:11, color:'#3b82f6', textDecoration:'none' }}>
-              Connect Google Calendar
-            </a>
+            <a href="/api/auth/google" style={{ fontSize:11, color:'#3b82f6', textDecoration:'none' }}>Connect Google Calendar</a>
           </div>
         )}
-        {ALL_SLOTS.map(s => (
-          <CalSlot key={`${s.h}:${s.m}`} slot={s} events={events} currentMins={currentMins} />
-        ))}
+
+        {/* Grid container — events are absolutely positioned on top */}
+        <div style={{ position:'relative', overflow:'hidden' }}>
+
+          {/* Time grid lines and labels */}
+          {ALL_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} />)}
+
+          {/* Current time red line */}
+          {showLine && (
+            <div style={{
+              position:'absolute', left:0, right:0, top:lineTop,
+              height:2, background:'#ef4444', zIndex:10, pointerEvents:'none',
+              boxShadow:'0 0 3px rgba(239,68,68,0.5)',
+            }}>
+              <div style={{
+                position:'absolute', left:32, top:-4,
+                width:10, height:10, borderRadius:'50%', background:'#ef4444',
+              }} />
+            </div>
+          )}
+
+          {/* Events — one seamless absolute block per event */}
+          {events.filter(e => !e.allDay && e.start).map(e => {
+            const sMins    = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
+            const endDate  = new Date(e.end || e.start)
+            const eMinsRaw = endDate.getHours() * 60 + endDate.getMinutes()
+            const eMins    = eMinsRaw === sMins ? sMins + 30 : eMinsRaw
+            const isPast   = currentMins > eMins
+
+            // Clip to visible calendar range
+            const visStart = Math.max(sMins, START_MINS)
+            const visEnd   = Math.min(eMins, START_MINS + TOTAL_MINS)
+            if (visStart >= visEnd) return null
+
+            const topPx    = ((visStart - START_MINS) / 30) * SLOT_H + 1
+            const heightPx = Math.max(SLOT_H - 3, ((visEnd - visStart) / 30) * SLOT_H - 2)
+
+            return (
+              <div key={e.id} style={{
+                position:'absolute', left:38, right:0,
+                top: topPx, height: heightPx,
+                background: e.color || '#1a73e8',
+                borderRadius:3, overflow:'hidden', zIndex:2,
+                display:'flex', alignItems:'flex-start',
+                padding:'2px 6px',
+                opacity: isPast ? 0.42 : 1,
+              }}>
+                <span style={{
+                  fontSize:10, fontWeight:500, color:'#fff',
+                  whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                }}>{e.title}</span>
+              </div>
+            )
+          })}
+
+        </div>
       </div>
     </div>
   )
 }
+
 
 // ── Add Task Modal ────────────────────────────────────────────────────
 
