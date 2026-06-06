@@ -142,6 +142,16 @@ function DropMenu({ trigger, children, open, setOpen }) {
           {children}
         </div>
       )}
+    {isMobile && (
+      <button onClick={() => setShowAdd(true)} aria-label="Add task" style={{
+        position:'fixed', bottom:24, right:20, zIndex:200,
+        width:62, height:62, borderRadius:'50%',
+        background:'#1e40af', border:'none', cursor:'pointer',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        fontSize:34, color:'#fff', fontWeight:300, lineHeight:1,
+        boxShadow:'0 4px 20px rgba(30,64,175,0.55)', userSelect:'none',
+      }}>+</button>
+    )}
     </div>
   )
 }
@@ -986,17 +996,7 @@ export default function App() {
 
   return (
     <div style={{ background:'#0f0f0f', minHeight:'100vh', padding: isMobile ? 0 : 16, boxSizing:'border-box' }}>
-      {isMobile && (
-      <button onClick={() => setShowAdd(true)} aria-label="Add task" style={{
-        position:'fixed', bottom:24, right:20, zIndex:200,
-        width:62, height:62, borderRadius:'50%',
-        background:'#1e40af', border:'none', cursor:'pointer',
-        display:'flex', alignItems:'center', justifyContent:'center',
-        fontSize:34, color:'#fff', fontWeight:300, lineHeight:1,
-        boxShadow:'0 4px 20px rgba(30,64,175,0.55)', userSelect:'none',
-      }}>+</button>
-    )}
-    {showAdd && <AddTaskModal newTask={newTask} setNewTask={setNewTask} onAdd={addTask} onClose={()=>setShowAdd(false)} />}
+      {showAdd && <AddTaskModal newTask={newTask} setNewTask={setNewTask} onAdd={addTask} onClose={()=>setShowAdd(false)} />}
       <div style={{ maxWidth:1600, margin:'0 auto' }}>
         {isMobile ? (
           <div style={{ position:'sticky', top:0, zIndex:100, background:'#0f0f0f', padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.1)' }}>
@@ -1024,11 +1024,10 @@ export default function App() {
 
         {view==='master' && <MasterFilterBar filterView={filterView} setFilterView={setFilterView} filterBiz={filterBiz} setFilterBiz={setFilterBiz} />}
 
-        <div style={isMobile ? { padding:'12px 16px 96px' } : {}}>
         {view==='daily' && (isMobile ? (
-          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ padding:'12px 16px 96px' }}>
             <DoFirst flagged={flagged} onUnflag={toggleFlag} onSetStatus={setTaskStatus} onArchive={archiveTask} />
-            <div style={card}>
+            <div style={{ ...card, marginTop:12 }}>
               <div style={{ ...cardHead, flexWrap:'wrap' }}>
                 <span>Today's tasks</span>
                 <span style={{ background:'#f1f5f9', color:'#94a3b8', fontSize:10, padding:'0 6px', borderRadius:20 }}>{dailyTasks.length}</span>
