@@ -232,8 +232,9 @@ function DateCell({ value, taskId, onSetDate, spanStyle={} }) {
   if (open) {
     return (
       <input type="date" autoFocus defaultValue={toDatInput(value)}
-        onChange={e => { if (e.target.value) { onSetDate(taskId,e.target.value); setOpen(false) } }}
-        onBlur={() => setOpen(false)} style={{ ...editInp, width:140 }} />
+        onBlur={e => { if (e.target.value) onSetDate(taskId,e.target.value); setOpen(false) }}
+        onKeyDown={e => { if (e.key==='Enter' && e.target.value) { onSetDate(taskId,e.target.value); setOpen(false) } if (e.key==='Escape') setOpen(false) }}
+        style={{ ...editInp, width:140 }} />
     )
   }
   return (
