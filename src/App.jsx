@@ -312,22 +312,32 @@ function CalSlot({ slot, events, currentMins }) {
     ? Math.round(((currentMins - slotStartMins) / 30) * SLOT_H)
     : null
 
-  const slotEvents = events.filter(e => {
-    if (!e.start || e.allDay) return false
+  const getEventMins = e => {
     const sMins    = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
     const endDate  = new Date(e.end || e.start)
     const eMinsRaw = endDate.getHours() * 60 + endDate.getMinutes()
     const eMins    = eMinsRaw === sMins ? sMins + 30 : eMinsRaw
+    return { sMins, eMins }
+  }
+
+  const slotEvents = events.filter(e => {
+    if (!e.start || e.allDay) return false
+    const { sMins, eMins } = getEventMins(e)
     return sMins < slotEndMins && eMins > slotStartMins
   })
 
+  // Transparent border when any event continues into the next slot
+  // This makes multi-slot events appear as one seamless block
+  const hasContinuation = slotEvents.some(e => getEventMins(e).eMins > slotEndMins)
+  const borderColor = hasContinuation ? 'transparent'
+    : slot.isNoon ? '#d1d5db' : '#f0f0f0'
+
   return (
     <div style={{
-      position: 'relative', display:'flex', alignItems:'stretch',
-      borderBottom: slot.isNoon ? '1px solid #d1d5db' : '1px solid #f0f0f0',
+      position:'relative', display:'flex', alignItems:'stretch',
+      borderBottom: `1px solid ${borderColor}`,
       minHeight: SLOT_H,
     }}>
-      {/* Current time indicator */}
       {lineTop !== null && (
         <div style={{
           position:'absolute', left:0, right:0, top:lineTop,
@@ -340,29 +350,31 @@ function CalSlot({ slot, events, currentMins }) {
           }} />
         </div>
       )}
-      {/* Time label */}
       <span style={{
         fontSize:9, width:36, flexShrink:0, paddingRight:4,
         display:'flex', alignItems:'center', justifyContent:'flex-end',
         color:      slot.isNoon ? '#374151' : isPast ? '#e5e7eb' : '#c0c0c0',
         fontWeight: slot.isNoon ? 600 : 400,
       }}>{slot.label}</span>
-      {/* Events — full width, grayed if past */}
       {slotEvents.length > 0 && (
         <div style={{
           flex:1, display:'flex', gap:2, alignItems:'stretch',
-          overflow:'hidden', padding:'1px 0',
-          opacity: isPast ? 0.42 : 1,
+          overflow:'hidden', padding:0, opacity: isPast ? 0.42 : 1,
         }}>
           {slotEvents.map(e => {
-            const sMins   = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
+            const { sMins, eMins } = getEventMins(e)
             const isFirst = sMins >= slotStartMins && sMins < slotEndMins
+            const isLast  = eMins <= slotEndMins
+            const radius  = isFirst && isLast ? 3
+              : isFirst ? '3px 3px 0 0'
+              : isLast  ? '0 0 3px 3px'
+              : 0
             return (
               <div key={e.id} style={{
                 flex:1, background: e.color||'#1a73e8',
-                borderRadius:3, overflow:'hidden',
+                borderRadius: radius, overflow:'hidden',
                 display:'flex', alignItems:'center',
-                padding:'0 6px', minWidth:0,
+                padding: isFirst ? '0 6px' : 0, minWidth:0,
               }}>
                 {isFirst && (
                   <span style={{
