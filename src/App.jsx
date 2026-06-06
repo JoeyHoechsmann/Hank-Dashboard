@@ -539,7 +539,7 @@ function DoFirst({ flagged, onUnflag, onSetStatus, onArchive }) {
 
 // ── Task table ────────────────────────────────────────────────────────
 
-function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetBiz, onSetDate, onArchive, editing, editVal, setEditVal, onStartEdit, onSaveEdit, onCancelEdit, sort, onSort, showDelegate=false }) {
+function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetBiz, onSetDate, onArchive, editing, editVal, setEditVal, onStartEdit, onSaveEdit, onCancelEdit, sort, onSort, showDelegate=false, isMobile=false }) {
   const ep = { editing, editVal, setEditVal, onStart:onStartEdit, onSave:onSaveEdit, onCancel:onCancelEdit }
   const isMaster = mode === 'master'
   return (
@@ -550,10 +550,10 @@ function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetB
             <th style={{ ...th, width:32 }}></th>
             <SortTh label="Status" field="status" sort={sort} onSort={onSort} style={{ width:115 }} />
             <SortTh label="Task" field="name" sort={sort} onSort={onSort} />
-            <SortTh label="Business" field="biz" sort={sort} onSort={onSort} style={{ width:90 }} />
-            <SortTh label="Horizon" field="horizon" sort={sort} onSort={onSort} style={{ width:120 }} />
+            {!isMobile && <SortTh label="Business" field="biz" sort={sort} onSort={onSort} style={{ width:90 }} />}
+            {!isMobile && <SortTh label="Horizon" field="horizon" sort={sort} onSort={onSort} style={{ width:120 }} />}
             <SortTh label="Due date" field="due" sort={sort} onSort={onSort} style={{ width:80 }} />
-            {showDelegate && <SortTh label="Delegate" field="delegate" sort={sort} onSort={onSort} style={{ width:80 }} />}
+            {showDelegate && !isMobile && <SortTh label="Delegate" field="delegate" sort={sort} onSort={onSort} style={{ width:80 }} />}
             <th style={{ ...th, width:32 }}></th>
           </tr>
         </thead>
@@ -577,13 +577,13 @@ function TaskTable({ tasks, mode, onCheckLeft, onSetStatus, onSetHorizon, onSetB
                 <EditCell value={t.name} taskId={t.id} field="name" {...ep} inputStyle={{ width:240 }} spanStyle={{ color:t.overdue?'#b91c1c':'#111' }} />
                 {t.flagged && <span style={{ fontSize:9, background:'#fef3c7', color:'#92400e', padding:'1px 5px', borderRadius:3, marginLeft:6 }}>do first</span>}
               </td>
-              <td style={{ padding:'6px 8px' }}><BizDropdown biz={t.biz} taskId={t.id} onSelect={onSetBiz} /></td>
-              <td style={{ padding:'6px 8px' }}><HorizonDropdown horizon={t.horizon} taskId={t.id} onSelect={onSetHorizon} /></td>
+              {!isMobile && <td style={{ padding:'6px 8px' }}><BizDropdown biz={t.biz} taskId={t.id} onSelect={onSetBiz} /></td>}
+              {!isMobile && <td style={{ padding:'6px 8px' }}><HorizonDropdown horizon={t.horizon} taskId={t.id} onSelect={onSetHorizon} /></td>}
               <td style={{ padding:'6px 10px', fontSize:11 }}>
                 <DateCell value={t.due} taskId={t.id} onSetDate={onSetDate}
                   spanStyle={{ color:t.overdue?'#dc2626':'#555', fontWeight:t.overdue?600:400 }} />
               </td>
-              {showDelegate && (
+              {showDelegate && !isMobile && (
                 <td style={{ padding:'6px 10px', fontSize:11 }}>
                   <EditCell value={t.delegate} taskId={t.id} field="delegate" {...ep} inputStyle={{ width:80 }} spanStyle={{ color:'#555' }} />
                 </td>
@@ -807,6 +807,16 @@ function RightPanel({ tasks, goals, setGoals, syncing }) {
 
 // ── App ───────────────────────────────────────────────────────────────
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+  return mobile
+}
+
 export default function App() {
   const [view,         setView]         = useState('daily')
   const [showAdd,      setShowAdd]      = useState(false)
@@ -823,6 +833,7 @@ export default function App() {
   const [loading,      setLoading]      = useState(true)
   const [syncing,      setSyncing]      = useState(false)
   const [error,        setError]        = useState(null)
+  const isMobile = useIsMobile()
   const taskSyncRef = useRef(null)
   const goalSyncRef = useRef(null)
 
@@ -974,25 +985,59 @@ export default function App() {
   )
 
   return (
-    <div style={{ background:'#0f0f0f', minHeight:'100vh', padding:16, boxSizing:'border-box' }}>
-      {showAdd && <AddTaskModal newTask={newTask} setNewTask={setNewTask} onAdd={addTask} onClose={()=>setShowAdd(false)} />}
+    <div style={{ background:'#0f0f0f', minHeight:'100vh', padding: isMobile ? 0 : 16, boxSizing:'border-box' }}>
+      {isMobile && (
+      <button onClick={() => setShowAdd(true)} aria-label="Add task" style={{
+        position:'fixed', bottom:24, right:20, zIndex:200,
+        width:62, height:62, borderRadius:'50%',
+        background:'#1e40af', border:'none', cursor:'pointer',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        fontSize:34, color:'#fff', fontWeight:300, lineHeight:1,
+        boxShadow:'0 4px 20px rgba(30,64,175,0.55)', userSelect:'none',
+      }}>+</button>
+    )}
+    {showAdd && <AddTaskModal newTask={newTask} setNewTask={setNewTask} onAdd={addTask} onClose={()=>setShowAdd(false)} />}
       <div style={{ maxWidth:1600, margin:'0 auto' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:16, paddingBottom:14, marginBottom:14, borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
-          <span style={{ fontSize:32, fontWeight:600, letterSpacing:4, color:'#fff' }}>HANK</span>
-          <span style={{ fontSize:13, color:'#fff', opacity:0.7 }}>{getToday()}</span>
-          <div style={{ marginLeft:'auto', display:'flex', gap:4 }}>
-            {tabBtn('daily','Daily view')}{tabBtn('master','Master list')}{tabBtn('archive','Archive',archived.length)}
+        {isMobile ? (
+          <div style={{ position:'sticky', top:0, zIndex:100, background:'#0f0f0f', padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:24, fontWeight:600, letterSpacing:3, color:'#fff' }}>HANK</span>
+              <div style={{ marginLeft:'auto', display:'flex', gap:3 }}>
+                {tabBtn('daily','Daily')}{tabBtn('master','Master')}{tabBtn('archive','Archive',archived.length)}
+              </div>
+            </div>
           </div>
-          <button onClick={exportData} style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'5px 12px', fontSize:11, color:'rgba(255,255,255,0.4)', cursor:'pointer', fontFamily:'inherit' }}>Export</button>
-          <label style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'5px 12px', fontSize:11, color:'rgba(255,255,255,0.4)', cursor:'pointer', fontFamily:'inherit' }}>
-            Import<input type="file" accept=".json" onChange={e=>e.target.files[0]&&importData(e.target.files[0])} style={{ display:'none' }} />
-          </label>
-          <button onClick={()=>setShowAdd(true)} style={{ background:'#1e40af', border:'none', borderRadius:6, padding:'6px 16px', fontSize:12, color:'#fff', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>+ Add task</button>
-        </div>
+        ) : (
+          <div style={{ display:'flex', alignItems:'center', gap:16, paddingBottom:14, marginBottom:14, borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
+            <span style={{ fontSize:32, fontWeight:600, letterSpacing:4, color:'#fff' }}>HANK</span>
+            <span style={{ fontSize:13, color:'#fff', opacity:0.7 }}>{getToday()}</span>
+            <div style={{ marginLeft:'auto', display:'flex', gap:4 }}>
+              {tabBtn('daily','Daily view')}{tabBtn('master','Master list')}{tabBtn('archive','Archive',archived.length)}
+            </div>
+            <button onClick={exportData} style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'5px 12px', fontSize:11, color:'rgba(255,255,255,0.4)', cursor:'pointer', fontFamily:'inherit' }}>Export</button>
+            <label style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'5px 12px', fontSize:11, color:'rgba(255,255,255,0.4)', cursor:'pointer', fontFamily:'inherit' }}>
+              Import<input type="file" accept=".json" onChange={e=>e.target.files[0]&&importData(e.target.files[0])} style={{ display:'none' }} />
+            </label>
+            <button onClick={()=>setShowAdd(true)} style={{ background:'#1e40af', border:'none', borderRadius:6, padding:'6px 16px', fontSize:12, color:'#fff', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>+ Add task</button>
+          </div>
+        )}
 
         {view==='master' && <MasterFilterBar filterView={filterView} setFilterView={setFilterView} filterBiz={filterBiz} setFilterBiz={setFilterBiz} />}
 
-        {view==='daily' && (
+        <div style={isMobile ? { padding:'12px 16px 96px' } : {}}>
+        {view==='daily' && (isMobile ? (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <DoFirst flagged={flagged} onUnflag={toggleFlag} onSetStatus={setTaskStatus} onArchive={archiveTask} />
+            <div style={card}>
+              <div style={{ ...cardHead, flexWrap:'wrap' }}>
+                <span>Today's tasks</span>
+                <span style={{ background:'#f1f5f9', color:'#94a3b8', fontSize:10, padding:'0 6px', borderRadius:20 }}>{dailyTasks.length}</span>
+                <div style={{ marginLeft:'auto' }}><SearchInput value={dailySearch} onChange={setDailySearch} /></div>
+              </div>
+              <TaskTable tasks={dailyTasks} mode="daily" onCheckLeft={archiveTask} {...sharedProps} showDelegate={false} isMobile={true} />
+            </div>
+          </div>
+        ) : (
           <div style={{ display:'grid', gridTemplateColumns:'310px 1fr 280px', gap:14, alignItems:'start' }}>
             <div style={{ position:'sticky', top:16 }}><Calendar /></div>
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
@@ -1009,7 +1054,7 @@ export default function App() {
             </div>
             <div style={{ position:'sticky', top:16 }}><RightPanel tasks={tasks} goals={goals} setGoals={setGoals} syncing={syncing} /></div>
           </div>
-        )}
+        ))}
 
         {view==='master' && (
           <div style={card}>
@@ -1021,7 +1066,7 @@ export default function App() {
               </div>
               <SearchInput value={masterSearch} onChange={setMasterSearch} />
             </div>
-            <TaskTable tasks={masterBase} mode="master" onCheckLeft={toggleFlag} {...sharedProps} showDelegate={true} />
+            <TaskTable tasks={masterBase} mode="master" onCheckLeft={toggleFlag} {...sharedProps} showDelegate={true} isMobile={isMobile} />
           </div>
         )}
 
