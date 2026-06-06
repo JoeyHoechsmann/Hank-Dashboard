@@ -142,16 +142,6 @@ function DropMenu({ trigger, children, open, setOpen }) {
           {children}
         </div>
       )}
-    {isMobile && (
-      <button onClick={() => setShowAdd(true)} aria-label="Add task" style={{
-        position:'fixed', bottom:24, right:20, zIndex:200,
-        width:62, height:62, borderRadius:'50%',
-        background:'#1e40af', border:'none', cursor:'pointer',
-        display:'flex', alignItems:'center', justifyContent:'center',
-        fontSize:34, color:'#fff', fontWeight:300, lineHeight:1,
-        boxShadow:'0 4px 20px rgba(30,64,175,0.55)', userSelect:'none',
-      }}>+</button>
-    )}
     </div>
   )
 }
@@ -1071,6 +1061,16 @@ export default function App() {
 
         {view==='archive' && <ArchiveTable tasks={archived} onRestore={restoreTask} onDelete={deleteTask} />}
       </div>
+    {isMobile && (
+      <button onClick={() => setShowAdd(true)} aria-label="Add task" style={{
+        position:'fixed', bottom:24, right:20, zIndex:200,
+        width:62, height:62, borderRadius:'50%',
+        background:'#1e40af', border:'none', cursor:'pointer',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        fontSize:34, color:'#fff', fontWeight:300, lineHeight:1,
+        boxShadow:'0 4px 20px rgba(30,64,175,0.55)', userSelect:'none',
+      }}>+</button>
+    )}
     </div>
   )
 }
