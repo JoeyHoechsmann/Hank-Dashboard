@@ -322,7 +322,7 @@ function CalSlot({ slot }) {
 
 function Calendar() {
   const SLOT_H     = 19
-  const START_MINS = 6 * 60   // 6:00 AM in minutes
+  const START_MINS = 6 * 60
   const TOTAL_MINS = ALL_SLOTS.length * 30
 
   const [calData,     setCalData]     = useState({ connected: false, events: [] })
@@ -330,7 +330,7 @@ function Calendar() {
     const n = new Date(); return n.getHours() * 60 + n.getMinutes()
   })
 
-  useEffect(() => {
+  const fetchCalendar = () => {
     const now   = new Date()
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(),  0,  0,  0).toISOString()
     const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString()
@@ -338,6 +338,13 @@ function Calendar() {
       .then(r => r.json())
       .then(setCalData)
       .catch(() => {})
+  }
+
+  useEffect(() => {
+    fetchCalendar()
+    // Auto-refresh every 30 minutes
+    const refresh = setInterval(fetchCalendar, 30 * 60 * 1000)
+    return () => clearInterval(refresh)
   }, [])
 
   useEffect(() => {
@@ -347,7 +354,24 @@ function Calendar() {
     return () => clearInterval(tick)
   }, [])
 
-  const events   = calData.events || []
+  const allEvents   = calData.events || []
+  const allDayEvts  = allEvents.filter(e => e.allDay)
+  const timedEvts   = allEvents.filter(e => !e.allDay && e.start).map(e => {
+    const sMins    = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
+    const endDate  = new Date(e.end || e.start)
+    const eMinsRaw = endDate.getHours() * 60 + endDate.getMinutes()
+    const eMins    = eMinsRaw === sMins ? sMins + 30 : eMinsRaw
+    return { ...e, sMins, eMins }
+  })
+
+  // Calculate overlap columns for each event
+  const getLayout = (e) => {
+    const overlapping = timedEvts.filter(o => o.id !== e.id && o.sMins < e.eMins && o.eMins > e.sMins)
+    if (overlapping.length === 0) return { colIdx: 0, numCols: 1 }
+    const group = [e, ...overlapping].sort((a, b) => a.sMins - b.sMins || a.id.localeCompare(b.id))
+    return { colIdx: group.findIndex(g => g.id === e.id), numCols: group.length }
+  }
+
   const lineTop  = ((currentMins - START_MINS) / 30) * SLOT_H
   const showLine = lineTop >= 0 && lineTop <= TOTAL_MINS / 30 * SLOT_H
 
@@ -360,17 +384,28 @@ function Calendar() {
           : <span style={{ fontSize:9, color:'#22c55e' }}>● Live</span>
         }
       </div>
+
+      {/* All-day events banner */}
+      {allDayEvts.length > 0 && (
+        <div style={{ padding:'4px 8px 4px 42px', borderBottom:'1px solid #f0f0f0', display:'flex', flexWrap:'wrap', gap:3 }}>
+          {allDayEvts.map(e => (
+            <span key={e.id} style={{
+              background: e.color||'#1a73e8', color:'#fff',
+              fontSize:9, fontWeight:500, padding:'2px 7px', borderRadius:3,
+              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:220,
+            }}>{e.title}</span>
+          ))}
+        </div>
+      )}
+
       <div style={{ padding:'8px 12px' }}>
         {!calData.connected && (
           <div style={{ padding:'6px 0 10px', textAlign:'center' }}>
             <a href="/api/auth/google" style={{ fontSize:11, color:'#3b82f6', textDecoration:'none' }}>Connect Google Calendar</a>
           </div>
         )}
-
-        {/* Grid container — events are absolutely positioned on top */}
         <div style={{ position:'relative', overflow:'hidden' }}>
-
-          {/* Time grid lines and labels */}
+          {/* Time grid */}
           {ALL_SLOTS.map(s => <CalSlot key={`${s.h}:${s.m}`} slot={s} />)}
 
           {/* Current time red line */}
@@ -380,34 +415,27 @@ function Calendar() {
               height:2, background:'#ef4444', zIndex:10, pointerEvents:'none',
               boxShadow:'0 0 3px rgba(239,68,68,0.5)',
             }}>
-              <div style={{
-                position:'absolute', left:32, top:-4,
-                width:10, height:10, borderRadius:'50%', background:'#ef4444',
-              }} />
+              <div style={{ position:'absolute', left:32, top:-4, width:10, height:10, borderRadius:'50%', background:'#ef4444' }} />
             </div>
           )}
 
-          {/* Events — one seamless absolute block per event */}
-          {events.filter(e => !e.allDay && e.start).map(e => {
-            const sMins    = new Date(e.start).getHours() * 60 + new Date(e.start).getMinutes()
-            const endDate  = new Date(e.end || e.start)
-            const eMinsRaw = endDate.getHours() * 60 + endDate.getMinutes()
-            const eMins    = eMinsRaw === sMins ? sMins + 30 : eMinsRaw
-            const isPast   = currentMins > eMins
-
-            // Clip to visible calendar range
-            const visStart = Math.max(sMins, START_MINS)
-            const visEnd   = Math.min(eMins, START_MINS + TOTAL_MINS)
+          {/* Timed events — absolutely positioned with overlap columns */}
+          {timedEvts.map(e => {
+            const { colIdx, numCols } = getLayout(e)
+            const isPast   = currentMins > e.eMins
+            const visStart = Math.max(e.sMins, START_MINS)
+            const visEnd   = Math.min(e.eMins, START_MINS + TOTAL_MINS)
             if (visStart >= visEnd) return null
-
             const topPx    = ((visStart - START_MINS) / 30) * SLOT_H + 1
             const heightPx = Math.max(SLOT_H - 3, ((visEnd - visStart) / 30) * SLOT_H - 2)
-
+            const gap      = numCols > 1 ? 2 : 0
             return (
               <div key={e.id} style={{
-                position:'absolute', left:38, right:0,
+                position:'absolute',
                 top: topPx, height: heightPx,
-                background: e.color || '#1a73e8',
+                left:  `calc(38px + ${colIdx}     * (100% - 38px) / ${numCols} + ${colIdx > 0 ? gap : 0}px)`,
+                width: `calc((100% - 38px) / ${numCols} - ${gap}px)`,
+                background: e.color||'#1a73e8',
                 borderRadius:3, overflow:'hidden', zIndex:2,
                 display:'flex', alignItems:'flex-start',
                 padding:'2px 6px',
@@ -420,7 +448,6 @@ function Calendar() {
               </div>
             )
           })}
-
         </div>
       </div>
     </div>
